@@ -20,10 +20,10 @@ const ROLE_LABEL: Record<AdminUser["role"], { label: string; tone: "info" | "war
 };
 
 const MOCK_USERS: AdminUser[] = [
-  { id: 1, username: "admin", realName: "系统管理员", email: "admin@ijfys.com", role: "super", lastLogin: "刚刚", status: "active" },
-  { id: 2, username: "editor01", realName: "张编辑", email: "editor01@ijfys.com", role: "editor", lastLogin: "2 小时前", status: "active" },
-  { id: 3, username: "ops01", realName: "李运营", email: "ops01@ijfys.com", role: "ops", lastLogin: "昨天", status: "active" },
-  { id: 4, username: "guest", realName: "访客只读", email: "guest@ijfys.com", role: "viewer", lastLogin: "未登录", status: "disabled" },
+  { id: 1, username: "admin", realName: "系统管理员", email: "admin@example.com", role: "super", lastLogin: "刚刚", status: "active" },
+  { id: 2, username: "editor01", realName: "张编辑", email: "editor01@example.com", role: "editor", lastLogin: "2 小时前", status: "active" },
+  { id: 3, username: "ops01", realName: "李运营", email: "ops01@example.com", role: "ops", lastLogin: "昨天", status: "active" },
+  { id: 4, username: "guest", realName: "访客只读", email: "guest@example.com", role: "viewer", lastLogin: "未登录", status: "disabled" },
 ];
 
 export default function AdminUsersPage() {

@@ -1,6 +1,6 @@
 # 飓风影视 v1.0.0-beta 部署手册
 
-**目标域名**：ijfys.com  
+**目标域名**：your-domain.com  
 **最低 VPS 配置**：2 vCPU / 4 GB RAM / 60 GB SSD / Ubuntu 22.04 LTS  
 **推荐 VPS 配置**：4 vCPU / 8 GB RAM / 100 GB SSD（Meili 索引 + Postgres + Node × 3 进程）
 
@@ -41,9 +41,9 @@
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | ✓ | 公网 API 地址，例 `https://ijfys.com/api` |
+| `NEXT_PUBLIC_API_URL` | ✓ | 公网 API 地址，例 `https://your-domain.com/api` |
 | `API_URL` |   | SSR 时用的内网 API，例 `http://127.0.0.1:4000/api`（避免公网回环） |
-| `NEXT_PUBLIC_SITE_URL` | ✓ | sitemap/robots/RSS/OG 用，例 `https://ijfys.com` |
+| `NEXT_PUBLIC_SITE_URL` | ✓ | sitemap/robots/RSS/OG 用，例 `https://your-domain.com` |
 
 ---
 
@@ -104,15 +104,15 @@ echo "MEILI_MASTER_KEY=$MEILI"
 #   DATABASE_URL=postgresql://ijfys:STRONG_PASSWORD_HERE@localhost:5432/ijfys?schema=public
 #   JWT_SECRET=<上面的 JWT>
 #   NODE_ENV=production
-#   CORS_ORIGINS=https://ijfys.com,https://www.ijfys.com
+#   CORS_ORIGINS=https://your-domain.com,https://www.your-domain.com
 #   MEILI_API_KEY=<上面的 MEILI>
 #   PROVIDER_FFZY_BACKUP_URLS=(可选填一个 ffzy 镜像域名)
 nano server/.env
 
 # 编辑 .env.production：
-#   NEXT_PUBLIC_API_URL=https://ijfys.com/api
+#   NEXT_PUBLIC_API_URL=https://your-domain.com/api
 #   API_URL=http://127.0.0.1:4000/api
-#   NEXT_PUBLIC_SITE_URL=https://ijfys.com
+#   NEXT_PUBLIC_SITE_URL=https://your-domain.com
 nano .env.production
 
 # ────────────── (7) 一键准备 ──────────────
@@ -130,7 +130,7 @@ pm2 startup    # 输出一条 systemctl 命令，复制执行
 # ────────────── (10) 备份 cron（详见任务 5）──────────────
 
 # ────────────── (11) 验证（详见任务 8）──────────────
-bash deploy/scripts/health-check.sh https://ijfys.com https://ijfys.com
+bash deploy/scripts/health-check.sh https://your-domain.com https://your-domain.com
 ```
 
 ---
@@ -361,8 +361,8 @@ curl -X POST 'http://127.0.0.1:7700/dumps' \
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d ijfys.com -d www.ijfys.com \
-  --agree-tos --email admin@ijfys.com --redirect --hsts
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com \
+  --agree-tos --email admin@your-domain.com --redirect --hsts
 
 # 续期（certbot 自动加 cron，验证）
 sudo certbot renew --dry-run
@@ -377,10 +377,10 @@ certbot 自动续期 cron：`/etc/cron.d/certbot` 已就位。
 
 ```bash
 # 命令行
-curl -sI https://ijfys.com | head -10
+curl -sI https://your-domain.com | head -10
 
 # 在线评分（A+ 标准）
-# https://www.ssllabs.com/ssltest/analyze.html?d=ijfys.com
+# https://www.ssllabs.com/ssltest/analyze.html?d=your-domain.com
 ```
 
 期望评分 ≥ A：
@@ -407,7 +407,7 @@ curl -sI https://ijfys.com | head -10
 完整脚本：[`deploy/scripts/health-check.sh`](deploy/scripts/health-check.sh)
 
 ```bash
-bash deploy/scripts/health-check.sh https://ijfys.com https://ijfys.com
+bash deploy/scripts/health-check.sh https://your-domain.com https://your-domain.com
 ```
 
 预期输出（全部 200/ok）：
@@ -425,13 +425,13 @@ bash deploy/scripts/health-check.sh https://ijfys.com https://ijfys.com
 
 ### 手动 7 步上线验证
 
-1. **首页**：`https://ijfys.com/` — banner 渲染，频道有视频
-2. **分类**：`https://ijfys.com/category/movie` — 14 类型/11 地区/11 年代筛选 chip 出现
-3. **详情**：`https://ijfys.com/vod/<id>` — 封面/简介/线路/评论框
-4. **播放**：`https://ijfys.com/play/<id>/<ep>` — m3u8 可播，自动切线
-5. **搜索**：`https://ijfys.com/search?q=三体` — Meili 结果 + 演员/资讯分组
+1. **首页**：`https://your-domain.com/` — banner 渲染，频道有视频
+2. **分类**：`https://your-domain.com/category/movie` — 14 类型/11 地区/11 年代筛选 chip 出现
+3. **详情**：`https://your-domain.com/vod/<id>` — 封面/简介/线路/评论框
+4. **播放**：`https://your-domain.com/play/<id>/<ep>` — m3u8 可播，自动切线
+5. **搜索**：`https://your-domain.com/search?q=三体` — Meili 结果 + 演员/资讯分组
 6. **注册登录**：`/register` → 成功跳 `/me`，能加收藏
-7. **后台**：`https://ijfys.com/admin` — 仪表盘真实数据 + 触发同步按钮
+7. **后台**：`https://your-domain.com/admin` — 仪表盘真实数据 + 触发同步按钮
 
 ### 流量回归
 

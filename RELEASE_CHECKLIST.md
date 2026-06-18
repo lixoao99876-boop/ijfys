@@ -70,7 +70,7 @@ pm2 save && pm2 startup
 # 4. Nginx + SSL
 sudo cp deploy/nginx/ijfys.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d ijfys.com -d www.ijfys.com
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 
 # 5. 备份 cron
 echo "0 2 * * * /opt/ijfys/deploy/scripts/backup-db.sh" | crontab -
@@ -83,9 +83,9 @@ bash deploy/scripts/health-check.sh
 
 1. **生成强 JWT_SECRET**：`openssl rand -hex 32` → 写入 `server/.env`
 2. **配置 MEILI_MASTER_KEY**：`openssl rand -hex 32` → 同步给 ecosystem 和 server/.env
-3. **设置 CORS_ORIGINS**：在 server/.env 配 `https://ijfys.com,https://www.ijfys.com`
+3. **设置 CORS_ORIGINS**：在 server/.env 配 `https://your-domain.com,https://www.your-domain.com`
 4. **设置 NEXT_PUBLIC_API_URL** / **NEXT_PUBLIC_SITE_URL**：在 `.env.production` 配生产 URL
-5. **首跑后立即触发 Meili reindex**：`curl -X POST https://ijfys.com/api/admin/search/reindex`
+5. **首跑后立即触发 Meili reindex**：`curl -X POST https://your-domain.com/api/admin/search/reindex`
 
 ## 🛑 已知边界 / 待业务批准事项
 

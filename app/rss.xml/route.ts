@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ijfys.com";
+const SITE = SITE_URL;
 const API_BASE = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 export const revalidate = 600;
@@ -37,10 +38,10 @@ export async function GET() {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>飓风影视 - 最新更新</title>
+    <title>${esc(SITE_NAME)} - 最新更新</title>
     <link>${SITE}</link>
     <atom:link href="${SITE}/rss.xml" rel="self" type="application/rss+xml" />
-    <description>飓风影视：电影、剧集、综艺、动漫、短剧高清在线观看</description>
+    <description>${esc(SITE_NAME)}：电影、剧集、综艺、动漫、短剧高清在线观看</description>
     <language>zh-cn</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     ${items

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { SITE_HOST } from "@/lib/site";
 
 interface NavItem {
   href: string;
@@ -54,7 +55,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="px-6 py-4 text-xs text-muted/70 border-t border-white/5">
-        © {new Date().getFullYear()} ijfys.com
+        © {new Date().getFullYear()} {SITE_HOST}
       </div>
     </aside>
   );

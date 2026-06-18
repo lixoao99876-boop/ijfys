@@ -1,4 +1,4 @@
-# 飓风影视 · ijfys.com
+# 飓风影视
 
 参考爱壹帆 / ylsp.tv 的现代影视站前端脚手架。基于 **Next.js 15 (App Router) + TypeScript + TailwindCSS + ArtPlayer + HLS.js + Zustand**。
 

@@ -1,8 +1,8 @@
-# 飓风影视 ijfys.com - v1.0.0-beta
+# 飓风影视 - v1.0.0-beta
 
 **发布日期**：2026-06-18  
 **版本**：v1.0.0-beta（Public Beta）  
-**域名**：[ijfys.com](https://ijfys.com)  
+**域名**：[your-domain.com](https://your-domain.com)  
 **Codename**：Hurricane
 
 ---
@@ -155,9 +155,9 @@ bash deploy/scripts/setup.sh                                  # 一键准备
 pm2 start deploy/ecosystem.config.js && pm2 save && pm2 startup
 sudo cp deploy/nginx/ijfys.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d ijfys.com -d www.ijfys.com
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 echo "0 2 * * * /opt/ijfys/deploy/scripts/backup-db.sh" | crontab -
-bash deploy/scripts/health-check.sh https://ijfys.com https://ijfys.com
+bash deploy/scripts/health-check.sh https://your-domain.com https://your-domain.com
 ```
 
 详见 [DEPLOYMENT.md](DEPLOYMENT.md)。
@@ -204,4 +204,4 @@ bash deploy/scripts/rollback.sh full <prev-tag> <backup-file>
 
 ---
 
-**🎬 Have a hurricane of a watch — ijfys.com**
+**🎬 Have a hurricane of a watch.**

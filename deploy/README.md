@@ -50,7 +50,7 @@ sudo ln -sf /etc/nginx/sites-available/ijfys.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
 # 6) SSL
-sudo certbot --nginx -d ijfys.com -d www.ijfys.com
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 
 # 7) 自动备份 cron
 crontab -e

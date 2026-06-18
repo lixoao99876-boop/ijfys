@@ -168,8 +168,8 @@ sudo tee /etc/nginx/sites-enabled/maintenance.conf >/dev/null <<'EOF'
 server {
     listen 80 default_server;
     listen 443 ssl default_server;
-    ssl_certificate /etc/letsencrypt/live/ijfys.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ijfys.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
     return 503 'Site is under maintenance, back in 5 minutes.';
 }
 EOF
@@ -184,7 +184,7 @@ sudo rm /etc/nginx/sites-enabled/maintenance.conf
 sudo systemctl reload nginx
 
 # 6. 验证
-bash deploy/scripts/health-check.sh https://ijfys.com https://ijfys.com
+bash deploy/scripts/health-check.sh https://your-domain.com https://your-domain.com
 ```
 
 ---

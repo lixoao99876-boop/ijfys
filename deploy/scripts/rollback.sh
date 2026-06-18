@@ -98,19 +98,23 @@ case "$SCENARIO" in
   maintenance)
     MODE="${1:-}"
     if [ "$MODE" = "on" ]; then
-      sudo tee /etc/nginx/sites-enabled/maintenance.conf >/dev/null <<'EOF'
+      # 读站点主域名（从 .env.production 推导，避免硬编码）
+      SITE_HOST=$(grep -E "^NEXT_PUBLIC_SITE_URL=" .env.production 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/^"\(.*\)"$/\1/' | sed 's|^https\?://||' | sed 's|/$||')
+      [ -z "$SITE_HOST" ] && bail "无法从 .env.production 读取 NEXT_PUBLIC_SITE_URL"
+      CERT_DIR="/etc/letsencrypt/live/${SITE_HOST}"
+      sudo tee /etc/nginx/sites-enabled/maintenance.conf >/dev/null <<EOF
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
-    ssl_certificate /etc/letsencrypt/live/ijfys.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ijfys.com/privkey.pem;
+    ssl_certificate ${CERT_DIR}/fullchain.pem;
+    ssl_certificate_key ${CERT_DIR}/privkey.pem;
     return 503 'Site is under maintenance, back in 10 minutes.';
 }
 EOF
       sudo systemctl reload nginx
-      echo "✓ 维护模式 ON"
+      echo "✓ 维护模式 ON（cert: $CERT_DIR）"
     elif [ "$MODE" = "off" ]; then
       sudo rm -f /etc/nginx/sites-enabled/maintenance.conf
       sudo systemctl reload nginx

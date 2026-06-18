@@ -1,5 +1,6 @@
 import PageHeader from "@/components/admin/PageHeader";
 import { FormSection, Field, Input, Textarea, Toggle } from "@/components/admin/Form";
+import { SITE_HOST, SITE_NAME } from "@/lib/site";
 
 export default function AdminSiteSettingsPage() {
   return (
@@ -17,16 +18,16 @@ export default function AdminSiteSettingsPage() {
 
       <FormSection title="基础信息" description="影响所有页面 head 与底部展示">
         <Field label="网站名称">
-          <Input value="飓风影视" />
+          <Input value={SITE_NAME} />
         </Field>
         <Field label="域名">
-          <Input value="ijfys.com" />
+          <Input value={SITE_HOST} />
         </Field>
         <Field label="网站标语" hint="显示于首页 Hero 区与浏览器标题">
           <Input value="高清在线影视聚合" />
         </Field>
         <Field label="网站描述" hint="≤ 160 字">
-          <Textarea value="飓风影视：电影、剧集、综艺、动漫、短剧高清在线观看。" />
+          <Textarea value={`${SITE_NAME}：电影、剧集、综艺、动漫、短剧高清在线观看。`} />
         </Field>
         <Field label="Logo URL">
           <Input value="/favicon.svg" />
@@ -53,7 +54,7 @@ export default function AdminSiteSettingsPage() {
           <Input placeholder="例如 京公网安备 11010102000001 号" />
         </Field>
         <Field label="客服邮箱">
-          <Input placeholder="contact@ijfys.com" />
+          <Input placeholder={`contact@${SITE_HOST}`} />
         </Field>
       </FormSection>
 

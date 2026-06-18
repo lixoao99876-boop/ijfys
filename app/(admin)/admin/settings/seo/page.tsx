@@ -1,5 +1,6 @@
 import PageHeader from "@/components/admin/PageHeader";
 import { FormSection, Field, Input, Textarea, Toggle } from "@/components/admin/Form";
+import { SITE_HOST, SITE_NAME } from "@/lib/site";
 
 export default function AdminSeoSettingsPage() {
   return (
@@ -17,10 +18,10 @@ export default function AdminSeoSettingsPage() {
 
       <FormSection title="首页 Meta" description="未填写时回退到网站设置中的标题与描述">
         <Field label="Title 模板" hint="支持 {{title}} 占位">
-          <Input value="{{title}} - 飓风影视 ijfys.com" />
+          <Input value={`{{title}} - ${SITE_NAME} ${SITE_HOST}`} />
         </Field>
         <Field label="Description">
-          <Textarea value="飓风影视：电影、剧集、综艺、动漫、短剧高清在线观看，每日更新。" />
+          <Textarea value={`${SITE_NAME}：电影、剧集、综艺、动漫、短剧高清在线观看，每日更新。`} />
         </Field>
         <Field label="Keywords">
           <Input value="影视, 在线观看, 电影, 电视剧, 综艺, 动漫" />
