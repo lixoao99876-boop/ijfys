@@ -1,0 +1,529 @@
+// 飓风影视 资源中台 schema
+// 8 表：providers / videos / episodes / sources / source_episodes / actors / articles / sync_logs
+// 设计目标：跨多资源站去重 + 一个视频可有多 source + 每 source 多集 m3u8 + 评分 + 演员/资讯
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- 资源站 ----------
+enum ProviderStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+model Provider {
+  id        Int            @id @default(autoincrement())
+  code      String         @unique // ffzy / lzzy / bfzy / hnzy / jszy
+  name      String
+  baseUrl   String
+  status    ProviderStatus @default(ACTIVE)
+  weight    Int            @default(100) // 评分基础权重
+  lastSyncAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  sources    Source[]
+  syncLogs   SyncLog[]
+  syncStates SyncState[]
+
+  @@map("providers")
+}
+
+// ---------- 视频（去重后的唯一作品）----------
+enum Category {
+  movie
+  tv
+  anime
+  variety
+  short
+  unknown
+}
+
+enum VideoStatus {
+  PUBLISHED    // 上架，用户可见
+  UNPUBLISHED  // 下架，admin 不可见但保留数据
+  DELETED      // 软删除，同步时也跳过 update
+}
+
+model Video {
+  id            String   @id @default(cuid())
+  externalKey   String   @unique
+  title         String
+  originalTitle String?
+  category      Category @default(unknown)
+  year          Int?
+  region        String?
+  cover         String?
+  backdrop      String?
+  description   String?
+  director      String?
+  actors        String[] @default([])
+  genres        String[] @default([])
+  score         Float    @default(0)
+  remarks       String?
+  status        VideoStatus @default(PUBLISHED)  // 运营状态
+  // 播放统计（视频维度，由 reportPlay 累加）
+  playCount     Int      @default(0)
+  sourceUpdatedAt DateTime?
+  lastSyncedAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  episodes Episode[]
+  sources  Source[]
+
+  @@index([category])
+  @@index([year])
+  @@index([sourceUpdatedAt])
+  @@index([status])
+  @@index([playCount])
+  @@map("videos")
+}
+
+// ---------- 规范化分集（每个 video 一份正典剧集表）----------
+model Episode {
+  id      String @id @default(cuid())
+  videoId String
+  index   Int    // 0-based
+  name    String // 第 1 集 / 上 / 正片
+
+  video           Video           @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  sourceEpisodes  SourceEpisode[]
+
+  @@unique([videoId, index])
+  @@index([videoId])
+  @@map("episodes")
+}
+
+// ---------- 线路（一个 provider × 一个 video × 一个播放源）----------
+model Source {
+  id              String  @id @default(cuid())
+  videoId         String
+  providerId      Int
+  providerVodId   String  // 资源站内部 id，便于增量更新追踪
+  playFromCode    String  // vod_play_from 中的 code，如 ffm3u8 / lz_m3u8
+  sourceName      String  // 展示名："线路 A"
+  lineName        String  // "高速线路"
+  quality         String  // 1080P / 720P / 原画 / unknown
+  totalEpisodes   Int     @default(0)
+  score           Float   @default(0)
+  isActive        Boolean @default(true)
+  failureCount    Int     @default(0)
+  // 播放质量统计（前端 telemetry 上报）
+  playSuccessCount   Int @default(0)
+  playFailCount      Int @default(0)
+  avgResponseTimeMs  Int?           // 滑动平均，毫秒
+  totalPlayMs        BigInt @default(0)  // 累计播放时长
+  lastCheckedAt   DateTime?
+  lastSucceededAt DateTime?
+  lastFailedAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  video    Video           @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  provider Provider        @relation(fields: [providerId], references: [id])
+  episodes SourceEpisode[]
+
+  @@unique([videoId, providerId, playFromCode])
+  @@index([videoId])
+  @@index([providerId])
+  @@map("sources")
+}
+
+// ---------- 每个 source 的每集 m3u8 ----------
+model SourceEpisode {
+  id              String   @id @default(cuid())
+  sourceId        String
+  episodeId       String
+  m3u8Url         String
+  isValid         Boolean  @default(true)
+  lastValidatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  source  Source  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, episodeId])
+  @@index([sourceId])
+  @@map("source_episodes")
+}
+
+// ---------- 演员（跨 provider 按归一化姓名去重）----------
+model Actor {
+  id              String   @id @default(cuid())
+  externalKey     String   @unique // normalized(name)
+  name            String
+  alias           String?
+  sex             String?
+  area            String?
+  height          String?
+  weight          String?
+  birthday        String?
+  birthplace      String?
+  bloodType       String?
+  starSign        String?
+  school          String?
+  works           String?
+  cover           String?
+  blurb           String?
+  remarks         String?
+
+  // 来源追溯：最近一次写入它的 provider
+  providerCode    String?
+  providerActorId String?
+  sourceUpdatedAt DateTime?
+  lastSyncedAt    DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([name])
+  @@index([sourceUpdatedAt])
+  @@map("actors")
+}
+
+// ---------- 资讯文章（按 provider + 远端 id 去重，不跨站合并）----------
+model Article {
+  id              String   @id @default(cuid())
+  providerCode    String
+  providerArtId   String
+  title           String
+  subtitle        String?
+  typeName        String?
+  author          String?
+  fromSite        String?
+  cover           String?
+  picSlide        String?
+  blurb           String?
+  content         String?
+  jumpUrl         String?
+  score           Float    @default(0)
+  hits            Int      @default(0)
+  upVotes         Int      @default(0)
+  downVotes       Int      @default(0)
+  remarks         String?
+
+  sourceUpdatedAt DateTime?
+  lastSyncedAt    DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([providerCode, providerArtId])
+  @@index([sourceUpdatedAt])
+  @@index([typeName])
+  @@map("articles")
+}
+
+// ---------- 首页运营配置 ----------
+enum HomeChannelKind {
+  BANNER          // 顶部 banner 轮播
+  CUSTOM          // 任意自定义频道
+  COLLECTION      // 专题合集（引用 collection）
+}
+
+enum HomeSortStrategy {
+  LATEST          // 最近更新 (sourceUpdatedAt desc)
+  SCORE           // 评分 (score desc)
+  PLAY_COUNT      // 播放热度 (playCount desc)
+  UPCOMING        // 即将上映 (year > currentYear OR remarks 含"即将"/"待播")
+  MANUAL          // 仅显示手动钉选
+}
+
+// 首页频道（一个 = 首页上的一行）
+model HomeChannel {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  kind        HomeChannelKind @default(CUSTOM)
+  sortStrategy HomeSortStrategy @default(LATEST)
+  categoryFilter String?
+  collectionId String?            // kind=COLLECTION 时引用
+  order       Int      @default(100)
+  itemLimit   Int      @default(12)
+  fillFromDb  Boolean  @default(true)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items      HomeChannelItem[]
+  collection Collection? @relation(fields: [collectionId], references: [id])
+
+  @@index([order])
+  @@map("home_channels")
+}
+
+// 专题合集（运营创建，可被多个 home_channel 引用）
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?
+  cover       String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items    CollectionItem[]
+  channels HomeChannel[]
+
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String   @id @default(cuid())
+  collectionId String
+  videoId      String
+  order        Int      @default(100)
+  createdAt    DateTime @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, videoId])
+  @@index([collectionId, order])
+  @@map("collection_items")
+}
+
+// 频道内手动钉选的视频（按 order 排序，超出 itemLimit 截断）
+model HomeChannelItem {
+  id        String   @id @default(cuid())
+  channelId String
+  videoId   String
+  order     Int      @default(100)
+  createdAt DateTime @default(now())
+
+  channel HomeChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, videoId])
+  @@index([channelId, order])
+  @@map("home_channel_items")
+}
+
+// ---------- 每日聚合统计（PV/UV/DAU 趋势图占位）----------
+model DailyStat {
+  date      DateTime @id @db.Date
+  pv        Int      @default(0)
+  uv        Int      @default(0)
+  ip        Int      @default(0)
+  dau       Int      @default(0)
+  playCount Int      @default(0)
+  searches  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("daily_stats")
+}
+
+// ---------- 用户系统（预留，未启用登录）----------
+enum UserRole {
+  USER
+  VIP
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?  @unique
+  nickname     String?
+  avatar       String?
+  passwordHash String?
+  role         UserRole @default(USER)
+  isBanned     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  favorites UserFavorite[]
+  histories UserHistory[]
+  ratings   UserRating[]
+  comments  UserComment[]
+
+  @@map("users")
+}
+
+model UserFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, createdAt])
+  @@map("user_favorites")
+}
+
+model UserHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  videoId     String
+  episodeId   String?
+  episodeName String?
+  progress    Int      @default(0)  // 秒
+  duration    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId, updatedAt])
+  @@map("user_histories")
+}
+
+model UserRating {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  rating    Int      // 1-10
+  comment   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([videoId])
+  @@map("user_ratings")
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model UserComment {
+  id         String   @id @default(cuid())
+  userId     String
+  videoId    String?
+  articleId  String?
+  parentId   String?
+  content    String
+  likes      Int      @default(0)
+  status     CommentStatus @default(PENDING)
+  rejectReason String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  isDeleted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([videoId, status, createdAt])
+  @@index([articleId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("user_comments")
+}
+
+// ---------- 后台操作日志 ----------
+model AdminLog {
+  id        String   @id @default(cuid())
+  actor     String   // 操作人账号，未接入鉴权时固定 "admin"
+  action    String   // SYNC / TOGGLE_PROVIDER / EDIT_VIDEO / UNPUBLISH / DELETE / BULK_UPDATE ...
+  target    String?  // 操作对象简短描述 e.g. "video:cmqxxx | 南部档案" / "provider:lzzy"
+  detail    String?  // 完整 JSON 详情
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+// ---------- 用户搜索日志（热门搜索） ----------
+model SearchLog {
+  keyword       String   @id   // 已归一化（trim+lowercase）
+  hits          Int      @default(1)
+  lastSearchedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([hits])
+  @@index([lastSearchedAt])
+  @@map("search_logs")
+}
+
+// ---------- 同步状态（断点续传）----------
+enum SyncStateStatus {
+  IDLE
+  RUNNING
+  PAUSED      // 连续失败暂停，cron 下轮自动续传
+  COMPLETED
+  FAILED
+}
+
+model SyncState {
+  id                   String          @id @default(cuid())
+  providerId           Int
+  entity               SyncEntity
+  lastCompletedPage    Int             @default(0)  // 0 = 尚未开始
+  pageCount            Int             @default(0)  // 资源站返回的总页数
+  status               SyncStateStatus @default(IDLE)
+  consecutiveFailures  Int             @default(0)
+  lastError            String?
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  updatedAt            DateTime        @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  @@unique([providerId, entity])
+  @@map("sync_states")
+}
+
+// ---------- 同步日志 ----------
+enum SyncType {
+  FULL
+  INCREMENTAL
+  MANUAL
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum SyncEntity {
+  VIDEO
+  ACTOR
+  ARTICLE
+}
+
+model SyncLog {
+  id              String     @id @default(cuid())
+  providerId      Int
+  entity          SyncEntity @default(VIDEO)
+  type            SyncType
+  status          SyncStatus @default(RUNNING)
+  startedAt       DateTime   @default(now())
+  finishedAt      DateTime?
+  durationMs      Int?
+  pagesFetched    Int        @default(0)
+  itemsSeen       Int        @default(0)
+  videosAdded     Int        @default(0)
+  videosUpdated   Int        @default(0)
+  sourcesAdded    Int        @default(0)
+  actorsAdded     Int        @default(0)
+  actorsUpdated   Int        @default(0)
+  articlesAdded   Int        @default(0)
+  articlesUpdated Int        @default(0)
+  errorMessage    String?
+
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  @@index([providerId, startedAt])
+  @@index([entity, startedAt])
+  @@index([status])
+  @@map("sync_logs")
+}
