@@ -14,6 +14,7 @@ import { RecommendationModule } from "./recommendation/recommendation.module";
 import { AuthModule } from "./auth/auth.module";
 import { SearchModule } from "./search/search.module";
 import { CommonModule } from "./common/common.module";
+import { CoverQualityModule } from "./cover-quality/cover-quality.module";
 
 const RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED !== "false";
 
@@ -36,6 +37,7 @@ const RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED !== "false";
     CollectionModule,
     RecommendationModule,
     CommonModule,
+    CoverQualityModule,
   ],
   providers: RATE_LIMIT_ENABLED
     ? [{ provide: APP_GUARD, useClass: ThrottlerGuard }]

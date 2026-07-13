@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import EpisodeList from "@/components/video/EpisodeList";
+import SourceEpisodePicker from "@/components/video/SourceEpisodePicker";
 import SectionRow from "@/components/home/SectionRow";
 import FavoriteButton from "@/components/video/FavoriteButton";
 import CommentSection from "@/components/video/CommentSection";
-import { CATEGORY_LABEL } from "@/lib/types";
+import { CATEGORY_LABEL, type Category } from "@/lib/types";
 import { getRecommendations, getVideoById } from "@/lib/api";
+import { formatRemarks } from "@/lib/episode-format";
 
 export async function generateMetadata({
   params,
@@ -95,8 +96,12 @@ export default async function VodPage({ params }: { params: Promise<{ id: string
               <span>{video.year}</span>
               <span>·</span>
               <span>{video.region}</span>
-              <span>·</span>
-              <span>{video.remarks}</span>
+              {formatRemarks(video.remarks, video.updatedAt, video.category as Category) && (
+                <>
+                  <span>·</span>
+                  <span>{formatRemarks(video.remarks, video.updatedAt, video.category as Category)}</span>
+                </>
+              )}
             </div>
             <h1 className="text-2xl md:text-4xl font-bold mb-2">{video.title}</h1>
             {video.originalTitle && (
@@ -139,21 +144,15 @@ export default async function VodPage({ params }: { params: Promise<{ id: string
       <section className="mb-10">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-1 h-5 bg-primary rounded-full" />
-          <h3 className="text-lg font-bold">播放线路</h3>
+          <h3 className="text-lg font-bold">播放线路与选集</h3>
         </div>
-        <div className="space-y-5 bg-surface/40 rounded-xl p-4 border border-white/5">
-          {video.sources.map((s) => (
-            <div key={s.sourceId}>
-              <div className="flex items-center gap-2 mb-2 text-sm">
-                <span className="px-2 py-0.5 rounded bg-accent/20 text-accent text-xs font-medium">
-                  {s.sourceName}
-                </span>
-                <span className="text-xs text-muted">{s.lineName}</span>
-                <span className="text-xs text-muted">· {s.quality}</span>
-              </div>
-              <EpisodeList videoId={video.id} episodes={video.episodes} />
-            </div>
-          ))}
+        <div className="bg-surface/40 rounded-xl p-4 border border-white/5">
+          <SourceEpisodePicker
+            videoId={video.id}
+            category={video.category as Category}
+            episodes={video.episodes}
+            sources={video.sources}
+          />
         </div>
       </section>
 

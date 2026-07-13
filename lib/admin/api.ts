@@ -279,15 +279,20 @@ export function bulkVideoStatus(ids: string[], status: VideoStatus) {
 
 // ---------- 首页配置 ----------
 
+export type HomeSortStrategy = "LATEST" | "SCORE" | "PLAY_COUNT" | "UPCOMING" | "MANUAL";
+
 export interface AdminHomeChannel {
   code: string;
   title: string;
-  kind: "BANNER" | "CUSTOM";
+  kind: "BANNER" | "CUSTOM" | "COLLECTION";
+  sortStrategy: HomeSortStrategy;
   categoryFilter: string | null;
   order: number;
   itemLimit: number;
   fillFromDb: boolean;
   enabled: boolean;
+  minScore: number | null;
+  minPlayCount: number | null;
   items: Array<{
     id: string;
     videoId: string;
@@ -302,9 +307,13 @@ export function fetchHomeConfig() {
 
 export function patchHomeChannel(
   code: string,
-  data: Partial<{ title: string; categoryFilter: string | null; order: number; itemLimit: number; fillFromDb: boolean; enabled: boolean }>,
+  data: Partial<{ title: string; categoryFilter: string | null; sortStrategy: HomeSortStrategy; order: number; itemLimit: number; fillFromDb: boolean; enabled: boolean; minScore: number | null; minPlayCount: number | null }>,
 ) {
   return adminPatch<{ ok: boolean }>(`/home-config/channels/${encodeURIComponent(code)}`, data);
+}
+
+export function scanCoverQuality(limit: number = 500) {
+  return adminPost<{ scanned: number; valid: number; invalid: number; skipped: number }>("/cover-quality/scan", { limit });
 }
 
 export function addHomeChannelItem(code: string, videoId: string) {

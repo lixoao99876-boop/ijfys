@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
-import { Category, HomeChannelKind, HomeSortStrategy, Prisma, VideoStatus } from "@prisma/client";
+import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Category, CoverStatus, HomeChannelKind, HomeSortStrategy, Prisma, VideoStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { FULL_VIDEO_INCLUDE, toDTO, type VideoDTO } from "../api/video.mapper";
 
@@ -17,6 +17,21 @@ interface ChannelOutput {
   enabled: boolean;
   items: VideoDTO[];
 }
+
+/** 首页质量门槛：禁止无封面、裂图、无简介、无评分、无可用源的视频出现 */
+const HIGH_QUALITY_FILTER: Prisma.VideoWhereInput = {
+  cover: { not: "" },
+  coverStatus: { not: CoverStatus.INVALID },
+  description: { not: "" },
+  score: { gt: 0 },
+  sources: { some: { isActive: true } },
+};
+
+/** SCORE 频道默认最低门槛 */
+const SCORE_CHANNEL_MIN = 8.0;
+
+/** 即将上映的 remarks 关键词 */
+const UPCOMING_KEYWORDS = ["即将上映", "即将", "待播", "预告", "未播"];
 
 const DEFAULT_CHANNELS: Array<{
   code: string;
@@ -42,6 +57,11 @@ const DEFAULT_CHANNELS: Array<{
 
 @Injectable()
 export class HomeConfigService {
+  private readonly logger = new Logger(HomeConfigService.name);
+
+  /** backfill 候选放大倍数：取 limit * X，再做曝光轮换 sort 截前 limit */
+  private readonly ROTATION_OVERSAMPLE = 2;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async ensureSeeded(): Promise<void> {
@@ -62,7 +82,33 @@ export class HomeConfigService {
       include: { items: { orderBy: { order: "asc" } }, collection: true },
     });
     const filled = await Promise.all(channels.map((c) => this.fillChannel(c)));
+    // 异步记录曝光（不阻塞首页响应）
+    void this.recordImpressions(filled).catch((e) => {
+      this.logger.warn(`impression log failed: ${e instanceof Error ? e.message : e}`);
+    });
     return { channels: filled };
+  }
+
+  /**
+   * 批量 upsert 当前首页展示的 (videoId, channelCode) 曝光计数
+   * Fire-and-forget：不阻塞首页 SSR
+   */
+  private async recordImpressions(channels: ChannelOutput[]): Promise<void> {
+    const now = new Date();
+    const ops: Prisma.PrismaPromise<unknown>[] = [];
+    for (const c of channels) {
+      for (const v of c.items) {
+        ops.push(
+          this.prisma.homeImpression.upsert({
+            where: { videoId_channelCode: { videoId: v.id, channelCode: c.code } },
+            create: { videoId: v.id, channelCode: c.code, showCount: 1, lastShownAt: now },
+            update: { showCount: { increment: 1 }, lastShownAt: now },
+          }),
+        );
+      }
+    }
+    if (ops.length === 0) return;
+    await this.prisma.$transaction(ops);
   }
 
   async listForAdmin() {
@@ -94,6 +140,8 @@ export class HomeConfigService {
       itemLimit: c.itemLimit,
       fillFromDb: c.fillFromDb,
       enabled: c.enabled,
+      minScore: c.minScore,
+      minPlayCount: c.minPlayCount,
       items: c.items.map((it) => ({
         id: it.id,
         videoId: it.videoId,
@@ -115,6 +163,8 @@ export class HomeConfigService {
       itemLimit: number;
       fillFromDb: boolean;
       enabled: boolean;
+      minScore: number | null;
+      minPlayCount: number | null;
     }>,
   ) {
     const c = await this.prisma.homeChannel.findUnique({ where: { code } });
@@ -133,6 +183,8 @@ export class HomeConfigService {
     if (data.itemLimit !== undefined) upd.itemLimit = data.itemLimit;
     if (data.fillFromDb !== undefined) upd.fillFromDb = data.fillFromDb;
     if (data.enabled !== undefined) upd.enabled = data.enabled;
+    if (data.minScore !== undefined) upd.minScore = data.minScore;
+    if (data.minPlayCount !== undefined) upd.minPlayCount = data.minPlayCount;
     await this.prisma.homeChannel.update({ where: { code }, data: upd });
     return { ok: true };
   }
@@ -225,6 +277,8 @@ export class HomeConfigService {
     itemLimit: number;
     fillFromDb: boolean;
     enabled: boolean;
+    minScore?: number | null;
+    minPlayCount?: number | null;
     items: Array<{ videoId: string; order: number }>;
   }): Promise<ChannelOutput> {
     const limit = Math.max(1, c.itemLimit);
@@ -259,42 +313,99 @@ export class HomeConfigService {
     const pinnedMap = new Map(pinned.map((v) => [v.id, v]));
     const ordered = pinnedIds.map((id) => pinnedMap.get(id)).filter((v): v is NonNullable<typeof v> => !!v);
 
-    // 2) fillFromDb 补齐
+    // 2) fillFromDb 补齐（应用质量过滤 + 策略特定 where/order）
     if (c.fillFromDb && c.sortStrategy !== HomeSortStrategy.MANUAL && ordered.length < limit) {
       const need = limit - ordered.length;
       const exclude = ordered.map((v) => v.id);
       const where: Prisma.VideoWhereInput = {
+        ...HIGH_QUALITY_FILTER,
         status: VideoStatus.PUBLISHED,
         id: { notIn: exclude },
       };
       if (c.categoryFilter) where.category = c.categoryFilter as Category;
+      // 频道粒度阈值（P6.2）
+      if (typeof c.minScore === "number" && c.minScore > 0) where.score = { gte: c.minScore };
+      if (typeof c.minPlayCount === "number" && c.minPlayCount > 0) where.playCount = { gte: c.minPlayCount };
 
       let orderBy: Prisma.VideoOrderByWithRelationInput[];
       switch (c.sortStrategy) {
         case HomeSortStrategy.SCORE:
-          orderBy = [{ score: "desc" }, { sourceUpdatedAt: "desc" }];
+          where.score = { gte: SCORE_CHANNEL_MIN };
+          orderBy = [{ score: "desc" }, { playCount: "desc" }, { sourceUpdatedAt: "desc" }];
           break;
         case HomeSortStrategy.PLAY_COUNT:
-          orderBy = [{ playCount: "desc" }, { score: "desc" }];
+          orderBy = [{ playCount: "desc" }, { score: "desc" }, { sourceUpdatedAt: "desc" }];
           break;
-        case HomeSortStrategy.UPCOMING:
+        case HomeSortStrategy.UPCOMING: {
+          const nextYear = new Date().getFullYear() + 1;
+          where.OR = [
+            { year: { gte: nextYear } },
+            ...UPCOMING_KEYWORDS.map((kw) => ({ remarks: { contains: kw } })),
+          ];
           orderBy = [{ year: "desc" }, { sourceUpdatedAt: "desc" }];
-          where.year = { gte: new Date().getFullYear() };
           break;
+        }
         case HomeSortStrategy.LATEST:
         default:
-          orderBy = [{ sourceUpdatedAt: "desc" }, { score: "desc" }];
+          // P1: 综合更新热度（sourceUpdatedAt + playCount + score）
+          orderBy = [{ sourceUpdatedAt: "desc" }, { playCount: "desc" }, { score: "desc" }];
       }
-      const more = await this.prisma.video.findMany({
+      // 取 need * ROTATION_OVERSAMPLE 候选，再用曝光计数轮换
+      const overSampled = await this.prisma.video.findMany({
         where,
         orderBy,
-        take: need,
+        take: need * this.ROTATION_OVERSAMPLE,
         include: FULL_VIDEO_INCLUDE,
       });
+      const more = await this.rotateByImpression(overSampled, c.code, need);
       ordered.push(...more);
+
+      // backfill 仍不足 → 放宽到通用热度兜底（不再受 categoryFilter 之外的策略 where 影响），但保留 quality filter
+      if (ordered.length < limit) {
+        const stillNeed = limit - ordered.length;
+        const exclude2 = ordered.map((v) => v.id);
+        const fallbackWhere: Prisma.VideoWhereInput = {
+          ...HIGH_QUALITY_FILTER,
+          status: VideoStatus.PUBLISHED,
+          id: { notIn: exclude2 },
+        };
+        if (c.categoryFilter) fallbackWhere.category = c.categoryFilter as Category;
+        const fallback = await this.prisma.video.findMany({
+          where: fallbackWhere,
+          orderBy: [{ playCount: "desc" }, { score: "desc" }, { sourceUpdatedAt: "desc" }],
+          take: stillNeed,
+          include: FULL_VIDEO_INCLUDE,
+        });
+        ordered.push(...fallback);
+      }
     }
 
     return this.outputOf(c, ordered.slice(0, limit).map(toDTO));
+  }
+
+  /**
+   * 在已按 sortStrategy 排好的候选池中插入"曝光惩罚"：
+   *   - 查询 HomeImpression 拿到 (videoId, showCount)
+   *   - 按 (showCount asc, originalIndex asc) stable sort —— 同等曝光内保留原热度顺序
+   *   - 截前 N
+   * 当 video 没出现过曝光记录时 showCount=0，最优先
+   */
+  private async rotateByImpression<T extends { id: string }>(
+    candidates: T[],
+    channelCode: string,
+    n: number,
+  ): Promise<T[]> {
+    if (candidates.length <= n) return candidates;
+    const ids = candidates.map((v) => v.id);
+    const impressions = await this.prisma.homeImpression.findMany({
+      where: { videoId: { in: ids }, channelCode },
+      select: { videoId: true, showCount: true },
+    });
+    const counts = new Map(impressions.map((i) => [i.videoId, i.showCount]));
+    const ranked = candidates
+      .map((v, idx) => ({ v, idx, showCount: counts.get(v.id) ?? 0 }))
+      .sort((a, b) => (a.showCount === b.showCount ? a.idx - b.idx : a.showCount - b.showCount));
+    return ranked.slice(0, n).map((x) => x.v);
   }
 
   private outputOf(

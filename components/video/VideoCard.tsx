@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Video } from "@/lib/types";
+import { formatRemarks } from "@/lib/episode-format";
 
 export default function VideoCard({ video }: { video: Video }) {
+  const badge = formatRemarks(video.remarks, video.updatedAt, video.category);
   return (
     <Link
       href={`/vod/${video.id}`}
@@ -16,12 +18,15 @@ export default function VideoCard({ video }: { video: Video }) {
           sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, 200px"
           className="object-cover group-hover:scale-[1.04] transition-transform duration-500"
         />
-        <div className="absolute top-2 left-2 px-1.5 py-0.5 text-[11px] rounded bg-black/60 backdrop-blur-sm">
-          {video.remarks}
-        </div>
+        {badge && (
+          <div className="absolute top-2 left-2 px-1.5 py-0.5 text-[11px] rounded bg-black/60 backdrop-blur-sm">
+            {badge}
+          </div>
+        )}
         {video.score > 0 && (
-          <div className="absolute top-2 right-2 px-1.5 py-0.5 text-[11px] rounded bg-primary/90 font-semibold">
-            {video.score.toFixed(1)}
+          <div className="absolute top-2 right-2 px-1.5 py-0.5 text-[11px] rounded bg-black/60 backdrop-blur-sm font-semibold flex items-center gap-0.5">
+            <span className="text-yellow-400">★</span>
+            <span>{video.score.toFixed(1)}</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition" />

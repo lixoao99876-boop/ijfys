@@ -10,7 +10,16 @@ import {
   reorderHomeChannelItems,
   reorderHomeChannels,
   type AdminHomeChannel,
+  type HomeSortStrategy,
 } from "@/lib/admin/api";
+
+const SORT_STRATEGY_LABEL: Record<HomeSortStrategy, string> = {
+  LATEST: "最近更新",
+  SCORE: "高分优先",
+  PLAY_COUNT: "热度优先",
+  UPCOMING: "即将上映",
+  MANUAL: "仅显示钉选",
+};
 import { fmtCategory } from "@/lib/admin/format";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
@@ -80,6 +89,28 @@ export default function HomeConfigEditor({ initial }: { initial: AdminHomeChanne
       await patchHomeChannel(code, { itemLimit });
       setChannels((cs) => cs.map((c) => (c.code === code ? { ...c, itemLimit } : c)));
       notice("条数已保存");
+      refresh();
+    } catch (e) {
+      notice(`失败: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  async function saveSortStrategy(code: string, sortStrategy: HomeSortStrategy) {
+    try {
+      await patchHomeChannel(code, { sortStrategy });
+      setChannels((cs) => cs.map((c) => (c.code === code ? { ...c, sortStrategy } : c)));
+      notice(`排序策略 → ${SORT_STRATEGY_LABEL[sortStrategy]}`);
+      refresh();
+    } catch (e) {
+      notice(`失败: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  async function saveThreshold(code: string, field: "minScore" | "minPlayCount", value: number | null) {
+    try {
+      await patchHomeChannel(code, { [field]: value });
+      setChannels((cs) => cs.map((c) => (c.code === code ? { ...c, [field]: value } : c)));
+      notice(value === null ? "阈值已清除" : "阈值已保存");
       refresh();
     } catch (e) {
       notice(`失败: ${e instanceof Error ? e.message : e}`);
@@ -164,6 +195,35 @@ export default function HomeConfigEditor({ initial }: { initial: AdminHomeChanne
                 <ItemLimitControl
                   defaultValue={c.itemLimit}
                   onSave={(n) => saveLimit(c.code, n)}
+                />
+                <label className="flex items-center gap-1 text-xs text-muted">
+                  <span>排序</span>
+                  <select
+                    value={c.sortStrategy}
+                    onChange={(e) => saveSortStrategy(c.code, e.target.value as HomeSortStrategy)}
+                    disabled={pending || c.kind === "COLLECTION"}
+                    className="h-6 px-1.5 rounded bg-white/[0.04] border border-white/10 text-text text-xs disabled:opacity-40"
+                  >
+                    {(Object.keys(SORT_STRATEGY_LABEL) as HomeSortStrategy[]).map((k) => (
+                      <option key={k} value={k}>
+                        {SORT_STRATEGY_LABEL[k]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <ThresholdControl
+                  label="评分≥"
+                  defaultValue={c.minScore ?? null}
+                  step={0.5}
+                  max={10}
+                  onSave={(v) => saveThreshold(c.code, "minScore", v)}
+                />
+                <ThresholdControl
+                  label="播放量≥"
+                  defaultValue={c.minPlayCount ?? null}
+                  step={100}
+                  max={1000000}
+                  onSave={(v) => saveThreshold(c.code, "minPlayCount", v)}
                 />
                 <label className="flex items-center gap-1 text-xs cursor-pointer">
                   <input
@@ -266,6 +326,50 @@ export default function HomeConfigEditor({ initial }: { initial: AdminHomeChanne
         />
       )}
     </div>
+  );
+}
+
+function ThresholdControl({
+  label,
+  defaultValue,
+  step,
+  max,
+  onSave,
+}: {
+  label: string;
+  defaultValue: number | null;
+  step: number;
+  max: number;
+  onSave: (v: number | null) => void;
+}) {
+  const [v, setV] = useState(defaultValue === null ? "" : String(defaultValue));
+  return (
+    <label className="flex items-center gap-1 text-xs text-muted">
+      <span>{label}</span>
+      <input
+        type="number"
+        value={v}
+        step={step}
+        min={0}
+        max={max}
+        placeholder="—"
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => {
+          const trimmed = v.trim();
+          if (trimmed === "") {
+            if (defaultValue !== null) onSave(null);
+            return;
+          }
+          const n = Number(trimmed);
+          if (!Number.isFinite(n) || n < 0 || n > max) {
+            setV(defaultValue === null ? "" : String(defaultValue));
+            return;
+          }
+          if (n !== defaultValue) onSave(n);
+        }}
+        className="w-14 h-6 px-1 rounded bg-white/[0.04] border border-white/10 text-text tabular-nums"
+      />
+    </label>
   );
 }
 

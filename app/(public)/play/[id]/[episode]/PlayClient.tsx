@@ -14,10 +14,12 @@ import { CATEGORY_LABEL, type Video } from "@/lib/types";
 import { reportPlayFailure, reportPlaySuccess } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { upsertHistory as serverUpsertHistory } from "@/lib/auth";
+import { formatEpisodeLabel } from "@/lib/episode-format";
 
 interface Props {
   video: Video;
   initialEpisodeId: string;
+  initialSourceId?: string;
   recommendations: Video[];
   byActor?: Video[];
   byDirector?: Video[];
@@ -27,13 +29,14 @@ interface Props {
 export default function PlayClient({
   video,
   initialEpisodeId,
+  initialSourceId,
   recommendations,
   byActor = [],
   byDirector = [],
   byGenre = [],
 }: Props) {
   const router = useRouter();
-  const [sourceId, setSourceId] = useState(video.sources[0].sourceId);
+  const [sourceId, setSourceId] = useState(initialSourceId ?? video.sources[0].sourceId);
   const [episodeId, setEpisodeId] = useState(initialEpisodeId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -95,8 +98,10 @@ export default function PlayClient({
   );
 
   const handleEnded = useCallback(() => {
-    if (nextEpisode) router.push(`/play/${video.id}/${nextEpisode.episodeId}`);
-  }, [nextEpisode, router, video.id]);
+    if (nextEpisode) {
+      router.push(`/play/${video.id}/${nextEpisode.episodeId}?source=${encodeURIComponent(sourceId)}`);
+    }
+  }, [nextEpisode, router, video.id, sourceId]);
 
   const handleError = useCallback(
     (err: unknown) => {
@@ -127,6 +132,9 @@ export default function PlayClient({
   function switchSource(id: string) {
     setErrorMsg(null);
     setSourceId(id);
+    router.replace(`/play/${video.id}/${currentEpisode.episodeId}?source=${encodeURIComponent(id)}`, {
+      scroll: false,
+    });
   }
 
   return (
@@ -168,7 +176,7 @@ export default function PlayClient({
           <span className="ml-auto flex gap-2">
             {nextEpisode && (
               <Link
-                href={`/play/${video.id}/${nextEpisode.episodeId}`}
+                href={`/play/${video.id}/${nextEpisode.episodeId}?source=${encodeURIComponent(sourceId)}`}
                 className="px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
               >
                 下一集 →
@@ -178,7 +186,7 @@ export default function PlayClient({
         </div>
 
         <div className="mt-2 text-sm text-muted">
-          正在播放：<span className="text-text">{currentEpisode.name}</span> · 线路
+          正在播放：<span className="text-text">{formatEpisodeLabel(currentEpisode, video.category)}</span> · 线路
           <span className="text-text"> {currentSource.sourceName}</span>
         </div>
 
@@ -205,6 +213,8 @@ export default function PlayClient({
             videoId={video.id}
             episodes={video.episodes}
             currentEpisodeId={currentEpisode.episodeId}
+            category={video.category}
+            sourceId={currentSource.sourceId}
           />
         </div>
 
@@ -237,6 +247,8 @@ export default function PlayClient({
               episodes={video.episodes}
               currentEpisodeId={currentEpisode.episodeId}
               compact
+              category={video.category}
+              sourceId={currentSource.sourceId}
             />
           </div>
         </div>

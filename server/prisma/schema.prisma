@@ -62,6 +62,8 @@ model Video {
   year          Int?
   region        String?
   cover         String?
+  coverStatus   CoverStatus @default(UNKNOWN)
+  coverCheckedAt DateTime?
   backdrop      String?
   description   String?
   director      String?
@@ -85,7 +87,26 @@ model Video {
   @@index([sourceUpdatedAt])
   @@index([status])
   @@index([playCount])
+  @@index([coverStatus])
   @@map("videos")
+}
+
+enum CoverStatus {
+  UNKNOWN
+  VALID
+  INVALID
+}
+
+// ---------- 首页曝光统计：用于防止同一批视频长期霸榜 ----------
+model HomeImpression {
+  videoId     String
+  channelCode String
+  showCount   Int      @default(0)
+  lastShownAt DateTime @default(now())
+
+  @@id([videoId, channelCode])
+  @@index([channelCode, showCount])
+  @@map("home_impressions")
 }
 
 // ---------- 规范化分集（每个 video 一份正典剧集表）----------
@@ -252,6 +273,9 @@ model HomeChannel {
   itemLimit   Int      @default(12)
   fillFromDb  Boolean  @default(true)
   enabled     Boolean  @default(true)
+  // 频道粒度质量阈值（null=不应用）；前端无法手动钉选低质视频之外的额外约束
+  minScore    Float?
+  minPlayCount Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

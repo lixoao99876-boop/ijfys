@@ -4,6 +4,7 @@ import { AdminService } from "./admin.service";
 import { HomeConfigService } from "../home-config/home-config.service";
 import { CollectionService } from "../collection/collection.service";
 import { CommentService } from "../api/comment.service";
+import { CoverQualityService } from "../cover-quality/cover-quality.service";
 
 @Controller("admin")
 export class AdminController {
@@ -12,7 +13,14 @@ export class AdminController {
     private readonly homeConfig: HomeConfigService,
     private readonly collections: CollectionService,
     private readonly comments: CommentService,
+    private readonly coverQuality: CoverQualityService,
   ) {}
+
+  @Post("cover-quality/scan")
+  scanCoverQuality(@Body() body: { limit?: number }) {
+    const n = Math.max(1, Math.min(2000, body?.limit ?? 500));
+    return this.coverQuality.checkBatch(n);
+  }
 
   @Get("stats")
   stats() {
@@ -195,7 +203,7 @@ export class AdminController {
   @Patch("home-config/channels/:code")
   patchChannel(
     @Param("code") code: string,
-    @Body() body: { title?: string; categoryFilter?: string | null; order?: number; itemLimit?: number; fillFromDb?: boolean; enabled?: boolean },
+    @Body() body: { title?: string; categoryFilter?: string | null; sortStrategy?: HomeSortStrategy; order?: number; itemLimit?: number; fillFromDb?: boolean; enabled?: boolean; minScore?: number | null; minPlayCount?: number | null },
   ) {
     return this.homeConfig.updateChannel(code, body);
   }

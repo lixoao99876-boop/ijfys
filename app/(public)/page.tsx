@@ -4,6 +4,7 @@ import SectionRow from "@/components/home/SectionRow";
 import RecentlyWatched from "@/components/video/RecentlyWatched";
 import { getConfiguredHome, listCollections } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export default async function HomePage() {
