@@ -17,6 +17,22 @@ export interface VideoDTO {
   remarks: string;
   score: number;
   updatedAt: string;
+  /** TMDB 补齐元数据（enrichStatus=ok/partial 时才有，SEO 用） */
+  enrichment?: {
+    tmdbId?: number;
+    imdbId?: string;
+    detailedDescription?: string;
+    directors?: string[];
+    writers?: string[];
+    genresDetailed?: string[];
+    releaseDate?: string;
+    tmdbRating?: number;
+    tmdbVoteCount?: number;
+    runtime?: number;
+    keywords?: string[];
+    posterTmdb?: string;
+    backdropTmdb?: string;
+  };
   episodes: Array<{ episodeId: string; name: string; index: number }>;
   sources: Array<{
     sourceId: string;
@@ -34,6 +50,35 @@ type FullVideo = Video & {
 
 const PLACEHOLDER_COVER = "https://picsum.photos/seed/placeholder/400/600";
 const PLACEHOLDER_BACKDROP = "https://picsum.photos/seed/placeholder-bd/1600/900";
+
+function parseJsonArray(s: string | null): string[] | undefined {
+  if (!s) return undefined;
+  try {
+    const arr = JSON.parse(s);
+    return Array.isArray(arr) && arr.length ? arr : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toEnrichment(v: FullVideo): VideoDTO["enrichment"] {
+  if (v.enrichStatus !== "ok" && v.enrichStatus !== "partial") return undefined;
+  return {
+    tmdbId: v.tmdbId ?? undefined,
+    imdbId: v.imdbId ?? undefined,
+    detailedDescription: v.detailedDescription ?? undefined,
+    directors: parseJsonArray(v.directors),
+    writers: parseJsonArray(v.writers),
+    genresDetailed: parseJsonArray(v.genresDetailed),
+    releaseDate: v.releaseDate?.toISOString().slice(0, 10),
+    tmdbRating: v.tmdbRating ?? undefined,
+    tmdbVoteCount: v.tmdbVoteCount ?? undefined,
+    runtime: v.runtime ?? undefined,
+    keywords: parseJsonArray(v.keywords),
+    posterTmdb: v.posterTmdb ?? undefined,
+    backdropTmdb: v.backdropTmdb ?? undefined,
+  };
+}
 
 export function toDTO(v: FullVideo): VideoDTO {
   const epById = new Map(v.episodes.map((e) => [e.id, e]));
@@ -56,6 +101,7 @@ export function toDTO(v: FullVideo): VideoDTO {
     remarks: v.remarks ?? "",
     score: v.score ?? 0,
     updatedAt: (v.sourceUpdatedAt ?? v.updatedAt).toISOString(),
+    enrichment: toEnrichment(v),
     episodes: v.episodes
       .sort((a, b) => a.index - b.index)
       .map((e) => ({ episodeId: e.id, name: e.name, index: e.index })),

@@ -43,8 +43,26 @@ export interface Video {
   remarks: string;
   score: number;
   updatedAt: string;
+  /** TMDB 补齐元数据（SEO 用，enrich ok/partial 时才有） */
+  enrichment?: VideoEnrichment;
   episodes: Episode[];
   sources: Source[];
+}
+
+export interface VideoEnrichment {
+  tmdbId?: number;
+  imdbId?: string;
+  detailedDescription?: string;
+  directors?: string[];
+  writers?: string[];
+  genresDetailed?: string[];
+  releaseDate?: string;
+  tmdbRating?: number;
+  tmdbVoteCount?: number;
+  runtime?: number;
+  keywords?: string[];
+  posterTmdb?: string;
+  backdropTmdb?: string;
 }
 
 export interface HistoryItem {

@@ -79,9 +79,29 @@ model Video {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // ---- SEO 元数据补齐（阶段 3 · 2026-07-13，全部可空新增，不动上面已有字段）----
+  tmdbId              Int?
+  imdbId              String?
+  detailedDescription String?   @db.Text // 中文长描述，SEO 用
+  directors           String?   // JSON string[]
+  writers             String?   // JSON string[]
+  genresDetailed      String?   // TMDB genres JSON string[]
+  releaseDate         DateTime?
+  tmdbRating          Float?
+  tmdbVoteCount       Int?
+  runtime             Int?      // 分钟
+  keywords            String?   // TMDB keywords JSON string[]（SEO 长尾）
+  posterTmdb          String?
+  backdropTmdb        String?
+  enrichedAt          DateTime?
+  enrichSource        String?   // 'tmdb' | 'douban' | 'manual'
+  enrichStatus        String?   // 'ok' | 'no_match' | 'partial' | 'failed'
+  enrichRetries       Int       @default(0)
+
   episodes Episode[]
   sources  Source[]
 
+  @@index([enrichStatus])
   @@index([category])
   @@index([year])
   @@index([sourceUpdatedAt])
@@ -550,4 +570,60 @@ model SyncLog {
   @@index([entity, startedAt])
   @@index([status])
   @@map("sync_logs")
+}
+
+// ---------- SEO 提交重试队列（阶段 2 · 2026-07-13）----------
+model BingRetryQueue {
+  id        Int      @id @default(autoincrement())
+  url       String   @unique
+  status    String   @default("pending_retry") // pending_retry | submitted | failed
+  attempts  Int      @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("bing_retry_queue")
+}
+
+model YandexRecrawlQueue {
+  id        Int      @id @default(autoincrement())
+  url       String   @unique
+  status    String   @default("pending_retry") // pending_retry | submitted | failed
+  attempts  Int      @default(0)
+  lastError String?
+  taskId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("yandex_recrawl_queue")
+}
+
+// ---------- TMDB 元数据补齐（阶段 3 · 2026-07-13）----------
+model EnrichmentLog {
+  id        Int      @id @default(autoincrement())
+  videoId   String
+  source    String   // 'tmdb' | 'douban'
+  ok        Boolean
+  matchedId String?
+  fields    String?  // JSON: 本次写入了哪些字段
+  error     String?
+  latency   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([videoId])
+  @@index([source, ok])
+  @@map("enrichment_log")
+}
+
+model TmdbCache {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // normalized(title)|year
+  payload   String   @db.Text
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("tmdb_cache")
 }
