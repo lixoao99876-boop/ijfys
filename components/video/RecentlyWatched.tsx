@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useHistoryStore } from "@/stores/historyStore";
+import Icon from "@/components/ui/Icon";
 
 /**
  * 最近观看（基于 localStorage history）
@@ -24,8 +25,8 @@ export default function RecentlyWatched({ limit = 8 }: { limit?: number }) {
           <span className="w-1 h-4 bg-primary rounded-full" />
           <h2 className="text-base font-semibold">最近观看</h2>
         </div>
-        <Link href="/history" className="text-xs text-muted hover:text-text">
-          查看全部 →
+        <Link href="/history" className="text-xs text-muted hover:text-text inline-flex items-center gap-1">
+          查看全部 <Icon name="arrow-right" size={13} />
         </Link>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">

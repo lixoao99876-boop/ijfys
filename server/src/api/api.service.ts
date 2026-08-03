@@ -302,14 +302,16 @@ export class ApiService {
   // genre / region / year 都是"聚合标签"（如 "动作" / "大陆" / "2010年代"），
   // 由 filter-aggregations 翻译成 DB 上的原始值或范围查询。
   async listByCategory(params: {
-    category: CategoryParam;
+    category?: CategoryParam;
     genre?: string;
     region?: string;
     year?: string;
     sort?: "latest" | "score" | "year";
     take?: number;
   }): Promise<{ items: VideoDTO[]; total: number }> {
-    const conds: Prisma.VideoWhereInput[] = [{ category: params.category, status: VideoStatus.PUBLISHED }];
+    // category 可空：AI 板块跨分类按 genre 取；空时靠 genre/region/year 收敛
+    const conds: Prisma.VideoWhereInput[] = [{ status: VideoStatus.PUBLISHED }];
+    if (params.category) conds.push({ category: params.category });
     const g = genreFilter(params.genre);
     const r = regionFilter(params.region);
     const y = yearFilter(params.year);

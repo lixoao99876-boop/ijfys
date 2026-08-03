@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Video } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
+import Icon from "@/components/ui/Icon";
 
 export default function HeroBanner({ videos }: { videos: Video[] }) {
   const [idx, setIdx] = useState(0);
@@ -48,9 +49,9 @@ export default function HeroBanner({ videos }: { videos: Video[] }) {
         <div className="flex items-center gap-3">
           <Link
             href={`/play/${v.id}/${v.episodes[0].episodeId}`}
-            className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary/80 text-sm font-semibold flex items-center gap-2 shadow-glow transition"
+            className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary/80 text-sm font-semibold flex items-center gap-1.5 shadow-glow transition"
           >
-            ▶ 立即播放
+            <Icon name="play" size={16} /> 立即播放
           </Link>
           <Link
             href={`/vod/${v.id}`}

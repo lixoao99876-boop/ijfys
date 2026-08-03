@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import VideoGrid from "@/components/video/VideoGrid";
 import { getActorDetail } from "@/lib/api";
+import { SITE_URL, SITE_NAME, SOCIAL_IMAGE } from "@/lib/site";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -15,14 +16,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const desc = actor.blurb
     ? actor.blurb.slice(0, 140)
     : `${actor.name}${actor.area ? "（" + actor.area + "）" : ""} 个人资料、代表作${works.length ? "、" + works.slice(0, 3).map((w) => w.title).join("、") : ""}。`;
+  const canonical = `${SITE_URL}/actor/${id}`;
   return {
-    title: `${actor.name} - 飓风影视`,
+    title: `${actor.name} - ${SITE_NAME}`,
     description: desc,
     keywords: [actor.name, actor.alias, actor.area, "演员", "影视作品"].filter(Boolean).join(", "),
+    alternates: { canonical },
     openGraph: {
       title: `${actor.name}`,
       description: desc,
-      images: actor.cover ? [actor.cover] : [],
+      url: canonical,
+      images: (actor.cover ? [actor.cover] : []).concat(SOCIAL_IMAGE),
       type: "profile",
     },
   };

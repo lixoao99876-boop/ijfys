@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { listActors } from "@/lib/api";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "演员库 - 飓风影视" };
+export const metadata = { title: `演员库 - ${SITE_NAME}` };
 
 export default async function ActorListPage({
   searchParams,

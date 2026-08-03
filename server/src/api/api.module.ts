@@ -11,9 +11,10 @@ import { CommentController } from "./comment.controller";
 import { CommentService } from "./comment.service";
 import { SitemapController } from "./sitemap.controller";
 import { SitemapService } from "./sitemap.service";
+import { SitePageModule } from "../sitepage/sitepage.module";
 
 @Module({
-  imports: [ScoringModule, HomeConfigModule, CollectionModule, RecommendationModule],
+  imports: [ScoringModule, HomeConfigModule, CollectionModule, RecommendationModule, SitePageModule],
   controllers: [ApiController, UserController, CommentController, SitemapController],
   providers: [ApiService, UserService, CommentService, SitemapService],
   exports: [CommentService],

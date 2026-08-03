@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Video } from "@/lib/types";
 import VideoCard from "@/components/video/VideoCard";
+import Icon from "@/components/ui/Icon";
 
 interface Props {
   title: string;
@@ -18,8 +19,8 @@ export default function SectionRow({ title, videos, moreHref }: Props) {
           {title}
         </h3>
         {moreHref && (
-          <Link href={moreHref} className="text-xs text-muted hover:text-accent transition">
-            更多 →
+          <Link href={moreHref} className="text-xs text-muted hover:text-accent transition inline-flex items-center gap-1">
+            更多 <Icon name="arrow-right" size={13} />
           </Link>
         )}
       </div>

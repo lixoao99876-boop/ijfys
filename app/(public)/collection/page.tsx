@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { listCollections } from "@/lib/api";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "专题合集 - 飓风影视" };
+export const metadata = { title: `专题合集 - ${SITE_NAME}` };
 
 export default async function CollectionListPage() {
   const collections = await listCollections().catch(() => []);

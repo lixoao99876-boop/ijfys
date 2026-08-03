@@ -32,6 +32,15 @@ export const GENRE_AGGREGATION: Record<string, string[]> = {
   历史: ["历史", "古装", "宫廷", "传记", "年代", "历史剧"],
 };
 
+/**
+ * 虚拟/专题聚合：不进 GENRE_LABELS 下拉（不污染普通分类筛选），
+ * 仅供 AI 板块等程序化落地页按 genre 参数查询。
+ * "AI漫剧" = 资源站原始标签 AI漫 ∪ AI漫剧（互斥两标签，合计约 3156 部，均在 tv 分类）。
+ */
+export const VIRTUAL_GENRE_AGGREGATION: Record<string, string[]> = {
+  AI漫剧: ["AI漫", "AI漫剧"],
+};
+
 export const REGION_AGGREGATION: Record<string, string[]> = {
   大陆: ["大陆", "中国", "中国大陆", "内地", "中国内地", "国产", "国语", "华语"],
   香港: ["香港", "中国香港", "港", "港台"],
@@ -85,7 +94,7 @@ const NAMED_REGION_VALUES: string[] = Array.from(
 /** 把单个聚合标签翻译成 Prisma Where 片段；命中不到返回 null（调用方可忽略） */
 export function genreFilter(label?: string): Prisma.VideoWhereInput | null {
   if (!label) return null;
-  const raw = GENRE_AGGREGATION[label];
+  const raw = GENRE_AGGREGATION[label] ?? VIRTUAL_GENRE_AGGREGATION[label];
   if (!raw || raw.length === 0) return null;
   return { genres: { hasSome: raw } };
 }

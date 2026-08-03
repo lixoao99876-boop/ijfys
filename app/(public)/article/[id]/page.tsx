@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticleDetail } from "@/lib/api";
+import { SITE_URL, SITE_NAME, SOCIAL_IMAGE } from "@/lib/site";
+import Icon from "@/components/ui/Icon";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -13,14 +15,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!data) return { title: "资讯不存在" };
   const { article } = data;
   const desc = (article.blurb ?? article.title).slice(0, 140);
+  const canonical = `${SITE_URL}/article/${id}`;
   return {
-    title: `${article.title} - 飓风影视资讯`,
+    title: `${article.title} - ${SITE_NAME}资讯`,
     description: desc,
     keywords: [article.title, article.typeName, "影视资讯"].filter(Boolean).join(", "),
+    alternates: { canonical },
     openGraph: {
       title: article.title,
       description: desc,
-      images: article.cover ? [article.cover] : [],
+      url: canonical,
+      images: (article.cover ? [article.cover] : []).concat(SOCIAL_IMAGE),
       type: "article",
       authors: article.author ? [article.author] : [],
     },
@@ -45,7 +50,7 @@ export default async function ArticlePage({ params }: PageProps) {
             image: article.cover,
             datePublished: article.sourceUpdatedAt,
             author: article.author ? { "@type": "Person", name: article.author } : undefined,
-            publisher: { "@type": "Organization", name: "飓风影视" },
+            publisher: { "@type": "Organization", name: SITE_NAME },
             description: article.blurb,
           }),
         }}
@@ -100,7 +105,7 @@ export default async function ArticlePage({ params }: PageProps) {
         <div>
           {prev && (
             <Link href={`/article/${prev.id}`} className="block group">
-              <div className="text-xs text-muted mb-1">← 上一篇</div>
+              <div className="text-xs text-muted mb-1 flex items-center gap-1"><Icon name="arrow-left" size={13} /> 上一篇</div>
               <div className="text-sm text-text group-hover:text-accent line-clamp-2">{prev.title}</div>
             </Link>
           )}
@@ -108,7 +113,7 @@ export default async function ArticlePage({ params }: PageProps) {
         <div className="text-right">
           {next && (
             <Link href={`/article/${next.id}`} className="block group">
-              <div className="text-xs text-muted mb-1">下一篇 →</div>
+              <div className="text-xs text-muted mb-1 flex items-center justify-end gap-1">下一篇 <Icon name="arrow-right" size={13} /></div>
               <div className="text-sm text-text group-hover:text-accent line-clamp-2">{next.title}</div>
             </Link>
           )}

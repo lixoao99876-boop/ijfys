@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import VideoGrid from "@/components/video/VideoGrid";
 import { getCollectionBySlug } from "@/lib/api";
+import { SITE_URL, SITE_NAME, SOCIAL_IMAGE } from "@/lib/site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -11,13 +12,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const c = await getCollectionBySlug(slug);
   if (!c) return { title: "专题不存在" };
+  const canonical = `${SITE_URL}/collection/${slug}`;
   return {
-    title: `${c.title} - 飓风影视专题`,
-    description: c.description ?? `${c.title} 专题合集，共 ${c.items.length} 部作品。`,
+    title: `${c.title} - ${SITE_NAME}专题`,
+    description: c.description ?? `${c.title} 专题合集，共 ${c.items.length} 部作品，高清在线观看。`,
+    alternates: { canonical },
     openGraph: {
       title: c.title,
       description: c.description ?? "",
-      images: c.cover ? [c.cover] : [],
+      url: canonical,
+      images: (c.cover ? [c.cover] : []).concat(SOCIAL_IMAGE),
       type: "website",
     },
   };

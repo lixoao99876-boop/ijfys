@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import EpisodeList from "@/components/video/EpisodeList";
+import Icon from "@/components/ui/Icon";
 import SourceTabs from "@/components/video/SourceTabs";
 import SectionRow from "@/components/home/SectionRow";
 import VideoCard from "@/components/video/VideoCard";
@@ -153,7 +154,7 @@ export default function PlayClient({
 
         {errorMsg && (
           <div className="mt-3 px-4 py-3 rounded-lg bg-primary/10 border border-primary/30 text-sm text-primary flex items-center justify-between">
-            <span>⚠️ {errorMsg}</span>
+            <span className="flex items-center gap-1.5"><Icon name="warning" size={15} /> {errorMsg}</span>
             <button
               onClick={() => setErrorMsg(null)}
               className="text-xs text-muted hover:text-text"
@@ -177,9 +178,9 @@ export default function PlayClient({
             {nextEpisode && (
               <Link
                 href={`/play/${video.id}/${nextEpisode.episodeId}?source=${encodeURIComponent(sourceId)}`}
-                className="px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition"
+                className="px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition inline-flex items-center gap-1"
               >
-                下一集 →
+                下一集 <Icon name="arrow-right" size={14} />
               </Link>
             )}
           </span>

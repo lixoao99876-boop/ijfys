@@ -22,9 +22,12 @@ async function bootstrap() {
   app.setGlobalPrefix("api");
 
   const port = Number(process.env.PORT ?? 4000);
-  await app.listen(port, "0.0.0.0");
+  // 默认只绑 127.0.0.1：外部只能经 nginx（必带 X-Forwarded-For），本机 SSR 直连无 XFF。
+  // 如需对外裸监听可显式设 BIND_HOST=0.0.0.0。
+  const host = process.env.BIND_HOST ?? "127.0.0.1";
+  await app.listen(port, host);
   const log = new Logger("Bootstrap");
-  log.log(`🌀 ijfys server on http://localhost:${port}/api (env=${process.env.NODE_ENV ?? "development"})`);
+  log.log(`🌀 ijfys server on http://${host}:${port}/api (env=${process.env.NODE_ENV ?? "development"})`);
   if (isProd && corsOrigins.length === 0) {
     log.warn("⚠️  CORS_ORIGINS 未设置，将允许所有 origin（建议生产环境配置白名单）");
   }

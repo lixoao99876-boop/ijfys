@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Icon from "@/components/ui/Icon";
 
 const KEY = "ijfys.searchHistory";
 const MAX = 12;
@@ -65,10 +66,10 @@ export default function SearchHistory({ currentKeyword }: { currentKeyword: stri
           </Link>
           <button
             onClick={() => remove(k)}
-            className="text-muted/60 hover:text-muted text-[10px]"
+            className="text-muted/60 hover:text-muted flex items-center"
             title="移除"
           >
-            ✕
+            <Icon name="close" size={11} />
           </button>
         </span>
       ))}

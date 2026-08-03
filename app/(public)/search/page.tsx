@@ -1,10 +1,31 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SearchBox from "@/components/search/SearchBox";
 import VideoGrid from "@/components/video/VideoGrid";
 import SearchHistory from "./SearchHistory";
 import { HOT_KEYWORDS, searchPaged } from "@/lib/api";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "搜索 - 飓风影视" };
+// 搜索页三层防护之页面层：noindex,follow（SRCH-01 / MROB-02）
+// robots.txt 不屏蔽搜索路径、Sitemap 不含搜索页 —— 另两层分别在 robots.ts 与 sitemap 里保证
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const q = ((sp.q as string) || "").trim();
+  return {
+    title: q ? `搜索：${q} - ${SITE_NAME}` : `站内搜索 - ${SITE_NAME}`,
+    description: q
+      ? `“${q}”的影视搜索结果 - ${SITE_NAME}，电影、剧集、动漫在线观看。`
+      : `${SITE_NAME}站内搜索：快速查找电影、电视剧、动漫、综艺、短剧。`,
+    robots: { index: false, follow: true },
+    alternates: {
+      canonical: q ? `${SITE_URL}/search?q=${encodeURIComponent(q)}` : `${SITE_URL}/search`,
+    },
+  };
+}
 
 export default async function SearchPage({
   searchParams,
@@ -28,7 +49,7 @@ export default async function SearchPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">搜索</h1>
+      <h1 className="text-2xl font-bold mb-4">{q ? `搜索：${q}` : "站内搜索"}</h1>
       <SearchBox defaultValue={q} />
 
       <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">

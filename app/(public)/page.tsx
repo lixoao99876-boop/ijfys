@@ -1,11 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import HeroBanner from "@/components/home/HeroBanner";
 import SectionRow from "@/components/home/SectionRow";
 import RecentlyWatched from "@/components/video/RecentlyWatched";
 import { getConfiguredHome, listCollections } from "@/lib/api";
+import { SITE_URL, SITE_NAME, SOCIAL_IMAGE, siteEntityLd } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: `${SITE_NAME} - 电影电视剧动漫综艺短剧高清在线观看`,
+  description: `${SITE_NAME}汇聚电影、电视剧、动漫、综艺、短剧等海量高清影视资源，支持在线播放，每日更新，免费观看。`,
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    title: `${SITE_NAME} - 高清影视在线观看`,
+    description: `${SITE_NAME}：电影、剧集、动漫、综艺、短剧高清在线观看，每日更新。`,
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630 }],
+    type: "website",
+  },
+};
 
 export default async function HomePage() {
   const [{ channels }, collections] = await Promise.all([getConfiguredHome(), listCollections().catch(() => [])]);
@@ -14,6 +30,11 @@ export default async function HomePage() {
 
   return (
     <div>
+      <h1 className="sr-only">{SITE_NAME} - 电影、电视剧、动漫、综艺、短剧高清在线观看</h1>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(siteEntityLd()) }}
+      />
       {banner && banner.items.length > 0 && <HeroBanner videos={banner.items} />}
 
       <RecentlyWatched limit={6} />

@@ -1,11 +1,12 @@
 import type { Video } from "@/lib/types";
 import VideoCard from "./VideoCard";
+import Icon from "@/components/ui/Icon";
 
 export default function VideoGrid({ videos }: { videos: Video[] }) {
   if (videos.length === 0) {
     return (
-      <div className="text-center py-20 text-muted">
-        <div className="text-5xl mb-3">🪐</div>
+      <div className="text-center py-20 text-muted flex flex-col items-center">
+        <Icon name="planet" size={48} className="mb-3 opacity-60" />
         <div className="text-sm">没有找到相关内容</div>
       </div>
     );

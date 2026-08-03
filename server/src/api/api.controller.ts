@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { Category } from "@prisma/client";
 import { ApiService } from "./api.service";
+import { SitePageService } from "../sitepage/sitepage.service";
 
 const VALID_CATEGORIES: Category[] = [
   Category.movie,
@@ -19,7 +20,26 @@ function assertCategory(input: string): Category {
 
 @Controller()
 export class ApiController {
-  constructor(private readonly api: ApiService) {}
+  constructor(
+    private readonly api: ApiService,
+    private readonly sitePage: SitePageService,
+  ) {}
+
+  // ---------- 站点内容页（资讯/公告）公开读 ----------
+  @Get("footer-links")
+  footerLinks() {
+    return this.sitePage.footerLinks();
+  }
+
+  @Get("announcements")
+  announcements() {
+    return this.sitePage.listPublicAnnouncements();
+  }
+
+  @Get("page/:slug")
+  page(@Param("slug") slug: string) {
+    return this.sitePage.getPublicBySlug(slug);
+  }
 
   @Get("home")
   home() {
@@ -108,8 +128,11 @@ export class ApiController {
     @Query("year") year?: string,
     @Query("sort") sort?: string,
   ) {
+    // category=all / 空 表示跨分类（配合 genre 用，如 AI 板块）；此时必须有 genre 兜底
+    const cat = category && category !== "all" ? assertCategory(category) : undefined;
+    if (!cat && !genre) throw new BadRequestException("category or genre required");
     return this.api.listByCategory({
-      category: assertCategory(category),
+      category: cat,
       genre: genre || undefined,
       region: region || undefined,
       year: year || undefined,

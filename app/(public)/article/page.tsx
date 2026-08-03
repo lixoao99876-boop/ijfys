@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { listArticles } from "@/lib/api";
+import { SITE_NAME } from "@/lib/site";
 
-export const metadata = { title: "影视资讯 - 飓风影视" };
+export const metadata = { title: `影视资讯 - ${SITE_NAME}` };
+
+// 资讯分类（资源站固定 3 类）
+const ARTICLE_TYPES = ["电影资讯", "娱乐新闻", "新闻资讯"];
 
 export default async function ArticleListPage({
   searchParams,
@@ -28,6 +32,28 @@ export default async function ArticleListPage({
     <div>
       <h1 className="text-2xl font-bold mb-1">影视资讯</h1>
       <p className="text-sm text-muted mb-4">共 {res.total.toLocaleString()} 篇资讯</p>
+
+      <div className="flex flex-wrap gap-2 mb-5">
+        <Link
+          href="/article"
+          className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
+            !type ? "bg-primary border-primary text-white" : "border-white/10 text-muted hover:text-text hover:border-white/30"
+          }`}
+        >
+          全部
+        </Link>
+        {ARTICLE_TYPES.map((t) => (
+          <Link
+            key={t}
+            href={`/article?type=${encodeURIComponent(t)}`}
+            className={`px-3.5 py-1.5 rounded-full text-sm border transition ${
+              type === t ? "bg-primary border-primary text-white" : "border-white/10 text-muted hover:text-text hover:border-white/30"
+            }`}
+          >
+            {t}
+          </Link>
+        ))}
+      </div>
 
       <ul className="divide-y divide-white/5">
         {res.items.map((a) => (

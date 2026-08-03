@@ -6,10 +6,11 @@ import SourceEpisodePicker from "@/components/video/SourceEpisodePicker";
 import SectionRow from "@/components/home/SectionRow";
 import FavoriteButton from "@/components/video/FavoriteButton";
 import CommentSection from "@/components/video/CommentSection";
+import Icon from "@/components/ui/Icon";
 import { CATEGORY_LABEL, type Category } from "@/lib/types";
 import { getRecommendations, getVideoById } from "@/lib/api";
 import { formatRemarks } from "@/lib/episode-format";
-import { SITE_URL, SITE_NAME } from "@/lib/site";
+import { SITE_URL, SITE_NAME, SOCIAL_IMAGE, breadcrumbLd } from "@/lib/site";
 
 export async function generateMetadata({
   params,
@@ -58,7 +59,7 @@ export async function generateMetadata({
       title,
       description: desc,
       url: canonical,
-      images: [en?.backdropTmdb, en?.posterTmdb, video.cover, video.backdrop].filter(Boolean) as string[],
+      images: ([en?.backdropTmdb, en?.posterTmdb, video.cover, video.backdrop].filter(Boolean) as string[]).concat(SOCIAL_IMAGE),
       type: "video.other",
     },
   };
@@ -80,6 +81,18 @@ export default async function VodPage({ params }: { params: Promise<{ id: string
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbLd([
+              { name: "首页", url: SITE_URL },
+              { name: CATEGORY_LABEL[video.category], url: `${SITE_URL}/category/${video.category}` },
+              { name: video.title, url: `${SITE_URL}/vod/${video.id}` },
+            ]),
+          ),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": video.category === "movie" ? "Movie" : "TVSeries",
@@ -98,15 +111,15 @@ export default async function VodPage({ params }: { params: Promise<{ id: string
             actor: (video.actors ?? []).slice(0, 10).map((a) => ({ "@type": "Person", name: a })),
             genre: en?.genresDetailed ?? video.genres,
             keywords: (en?.keywords ?? []).join(",") || undefined,
-            aggregateRating: en?.tmdbRating
-              ? {
-                  "@type": "AggregateRating",
-                  ratingValue: en.tmdbRating,
-                  ratingCount: en.tmdbVoteCount ?? 1,
-                  bestRating: 10,
-                }
-              : video.score > 0
-                ? { "@type": "AggregateRating", ratingValue: video.score, bestRating: 10, ratingCount: 100 }
+            // SD-02：只输出有真实票数支撑的评分，禁止编造 ratingCount
+            aggregateRating:
+              en?.tmdbRating && en?.tmdbVoteCount
+                ? {
+                    "@type": "AggregateRating",
+                    ratingValue: en.tmdbRating,
+                    ratingCount: en.tmdbVoteCount,
+                    bestRating: 10,
+                  }
                 : undefined,
           }),
         }}
@@ -163,9 +176,9 @@ export default async function VodPage({ params }: { params: Promise<{ id: string
             <div className="flex items-center gap-3">
               <Link
                 href={`/play/${video.id}/${firstEp.episodeId}`}
-                className="px-6 py-2.5 rounded-full bg-primary hover:bg-primary/80 font-semibold flex items-center gap-2 shadow-glow transition"
+                className="px-6 py-2.5 rounded-full bg-primary hover:bg-primary/80 font-semibold flex items-center gap-1.5 shadow-glow transition"
               >
-                ▶ 立即播放
+                <Icon name="play" size={17} /> 立即播放
               </Link>
               <FavoriteButton videoId={video.id} />
             </div>

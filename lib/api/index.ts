@@ -136,13 +136,13 @@ export interface CategoryFilter {
 }
 
 export async function getVideosByCategory(
-  category: Category,
+  category: Category | "all",
   filter?: CategoryFilter,
 ): Promise<Video[]> {
-  // 无筛选时复用首页聚合的前 6 条快速路径（缓存命中率高）
+  // 无筛选时复用首页聚合的前 6 条快速路径（缓存命中率高）；category=all 不走快速路径
   const hasFilter = !!(filter?.genre || filter?.region || filter?.year);
   const sort = filter?.sort ?? "latest";
-  if (!hasFilter && sort === "latest") {
+  if (category !== "all" && !hasFilter && sort === "latest") {
     const home = await fetchHome();
     if (home.byCategory[category] && home.byCategory[category].length >= 12) {
       return home.byCategory[category];
@@ -387,4 +387,35 @@ export function reportPlayFailure(sourceId: string): void {
   } catch {
     /* noop */
   }
+}
+
+// ---------- 站点内容页（资讯/公告/footer） ----------
+
+export interface SitePageDTO {
+  id: string;
+  slug: string;
+  title: string;
+  kind: "NEWS" | "ANNOUNCEMENT";
+  body: string;
+  summary: string | null;
+  updatedAt: string;
+}
+export interface FooterLink { slug: string; title: string }
+export interface AnnouncementItem { slug: string; title: string; summary: string | null; updatedAt: string }
+
+export async function getSitePage(slug: string): Promise<SitePageDTO | undefined> {
+  try {
+    return await apiFetch<SitePageDTO>(`/page/${encodeURIComponent(slug)}`, REVALIDATE_DETAIL);
+  } catch (e) {
+    if (e instanceof ApiNotFound) return undefined;
+    throw e;
+  }
+}
+
+export function getFooterLinks(): Promise<FooterLink[]> {
+  return apiFetch<FooterLink[]>("/footer-links", REVALIDATE_LIST);
+}
+
+export function listAnnouncements(): Promise<AnnouncementItem[]> {
+  return apiFetch<AnnouncementItem[]>("/announcements", REVALIDATE_LIST);
 }

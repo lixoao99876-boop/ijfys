@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Icon from "@/components/ui/Icon";
 
 export default function SearchBox({ defaultValue }: { defaultValue?: string }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function SearchBox({ defaultValue }: { defaultValue?: string }) {
 
   return (
     <form onSubmit={submit} className="flex items-center bg-surface2 rounded-full border border-white/5 focus-within:border-accent/60 transition max-w-2xl">
-      <span className="pl-5 text-muted">🔍</span>
+      <span className="pl-5 text-muted flex items-center"><Icon name="search" size={18} /></span>
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
