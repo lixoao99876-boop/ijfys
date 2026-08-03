@@ -39,7 +39,7 @@ export class OptionalAuthGuard implements CanActivate {
   }
 }
 
-function extractToken(req: Request): string | null {
+export function extractToken(req: Request): string | null {
   // Cookie
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cookies = (req as any).cookies as Record<string, string> | undefined;

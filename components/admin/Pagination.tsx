@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import Icon from "@/components/ui/Icon";
 
 interface Props {
   page: number;
@@ -38,8 +39,8 @@ export default function Pagination({ page, total, limit, basePath, hrefFor }: Pr
       </div>
       <div className="flex items-center gap-1">
         {page > 1 && (
-          <Link href={href(page - 1)} className="px-2 py-1 rounded border border-white/10 hover:border-white/30">
-            ←
+          <Link href={href(page - 1)} className="px-2 py-1 rounded border border-white/10 hover:border-white/30 inline-flex items-center">
+            <Icon name="arrow-left" size={15} />
           </Link>
         )}
         {items.map((p) => (
@@ -57,8 +58,8 @@ export default function Pagination({ page, total, limit, basePath, hrefFor }: Pr
           </Link>
         ))}
         {page < pageCount && (
-          <Link href={href(page + 1)} className="px-2 py-1 rounded border border-white/10 hover:border-white/30">
-            →
+          <Link href={href(page + 1)} className="px-2 py-1 rounded border border-white/10 hover:border-white/30 inline-flex items-center">
+            <Icon name="arrow-right" size={15} />
           </Link>
         )}
       </div>

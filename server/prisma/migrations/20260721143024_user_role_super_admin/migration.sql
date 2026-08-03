@@ -1,0 +1,2 @@
+-- 新增超级管理员角色
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'SUPER_ADMIN';

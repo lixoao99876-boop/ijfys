@@ -230,6 +230,7 @@ export function fetchRankings(limit?: number) {
 async function adminPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${ADMIN_BASE}${path}`, {
     method: "POST",
+    credentials: "include", // 携带 ijfys_token cookie，后端 AdminAuthGuard 校验
     headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -240,6 +241,7 @@ async function adminPost<T>(path: string, body?: unknown): Promise<T> {
 async function adminPatch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${ADMIN_BASE}${path}`, {
     method: "PATCH",
+    credentials: "include", // 携带 ijfys_token cookie，后端 AdminAuthGuard 校验
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -466,6 +468,48 @@ export function fetchSearchStats() {
 
 export function triggerReindex() {
   return adminPost<{ indexed: number }>("/search/reindex");
+}
+
+// ---------- 站点内容页（资讯/公告） ----------
+export type SitePageKind = "NEWS" | "ANNOUNCEMENT";
+export interface AdminSitePage {
+  id: string;
+  slug: string;
+  title: string;
+  kind: SitePageKind;
+  body: string;
+  summary: string | null;
+  isSystem: boolean;
+  published: boolean;
+  order: number;
+  updatedAt: string;
+}
+
+export function fetchSitePages(kind: SitePageKind) {
+  return adminFetch<AdminSitePage[]>(`/pages?kind=${kind}`);
+}
+
+export function createSitePage(body: {
+  slug: string;
+  title: string;
+  kind: SitePageKind;
+  body: string;
+  summary?: string;
+  published?: boolean;
+  order?: number;
+}) {
+  return adminPost<AdminSitePage>("/pages", body);
+}
+
+export function updateSitePage(
+  id: string,
+  body: Partial<{ title: string; body: string; summary: string | null; published: boolean; order: number }>,
+) {
+  return adminPatch<AdminSitePage>(`/pages/${encodeURIComponent(id)}`, body);
+}
+
+export function deleteSitePage(id: string) {
+  return adminPost<{ ok: boolean }>(`/pages/${encodeURIComponent(id)}/delete`);
 }
 
 function queryString(q: Record<string, string | number | undefined>): string {

@@ -1,11 +1,15 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ProviderStatus, VideoStatus, HomeChannelKind, HomeSortStrategy } from "@prisma/client";
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { ProviderStatus, VideoStatus, HomeChannelKind, HomeSortStrategy, SitePageKind } from "@prisma/client";
 import { AdminService } from "./admin.service";
 import { HomeConfigService } from "../home-config/home-config.service";
 import { CollectionService } from "../collection/collection.service";
 import { CommentService } from "../api/comment.service";
 import { CoverQualityService } from "../cover-quality/cover-quality.service";
+import { SitePageService } from "../sitepage/sitepage.service";
+import { AdminAuthGuard } from "../auth/admin-auth.guard";
 
+// 整个后台 API：本机 SSR 直连放行；公网写/直调必须 JWT + ADMIN/SUPER_ADMIN
+@UseGuards(AdminAuthGuard)
 @Controller("admin")
 export class AdminController {
   constructor(
@@ -14,7 +18,41 @@ export class AdminController {
     private readonly collections: CollectionService,
     private readonly comments: CommentService,
     private readonly coverQuality: CoverQualityService,
+    private readonly sitePage: SitePageService,
   ) {}
+
+  // ---------- 站点内容页（资讯/公告）后台 CRUD ----------
+  @Get("pages")
+  listPages(@Query("kind") kind?: string) {
+    const k: SitePageKind = kind === "ANNOUNCEMENT" ? "ANNOUNCEMENT" : "NEWS";
+    return this.sitePage.listAdmin(k);
+  }
+
+  @Get("pages/:id")
+  getPage(@Param("id") id: string) {
+    return this.sitePage.getAdmin(id);
+  }
+
+  @Post("pages")
+  createPage(
+    @Body() body: { slug: string; title: string; kind?: string; body: string; summary?: string; published?: boolean; order?: number },
+  ) {
+    const kind: SitePageKind = body?.kind === "ANNOUNCEMENT" ? "ANNOUNCEMENT" : "NEWS";
+    return this.sitePage.create({ ...body, kind });
+  }
+
+  @Patch("pages/:id")
+  updatePage(
+    @Param("id") id: string,
+    @Body() body: { title?: string; body?: string; summary?: string | null; published?: boolean; order?: number },
+  ) {
+    return this.sitePage.update(id, body);
+  }
+
+  @Post("pages/:id/delete")
+  deletePage(@Param("id") id: string) {
+    return this.sitePage.remove(id);
+  }
 
   @Post("cover-quality/scan")
   scanCoverQuality(@Body() body: { limit?: number }) {

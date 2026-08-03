@@ -4,12 +4,13 @@ import { HomeConfigModule } from "../home-config/home-config.module";
 import { CollectionModule } from "../collection/collection.module";
 import { ApiModule } from "../api/api.module";
 import { CoverQualityModule } from "../cover-quality/cover-quality.module";
+import { SitePageModule } from "../sitepage/sitepage.module";
 import { AdminController } from "./admin.controller";
 import { AdminService } from "./admin.service";
 import { AdminLogService } from "./admin-log.service";
 
 @Module({
-  imports: [CrawlerModule, HomeConfigModule, CollectionModule, ApiModule, CoverQualityModule],
+  imports: [CrawlerModule, HomeConfigModule, CollectionModule, ApiModule, CoverQualityModule, SitePageModule],
   controllers: [AdminController],
   providers: [AdminService, AdminLogService],
   exports: [AdminLogService],
