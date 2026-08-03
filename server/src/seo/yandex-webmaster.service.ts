@@ -72,24 +72,24 @@ export class YandexWebmasterService {
   }
 
   /** 单 URL 强制重抓。202 = 已入 yandex 队列 */
-  async recrawlUrl(url: string): Promise<{ ok: boolean; taskId?: string; status: number; error?: string }> {
+  async recrawlUrl(url: string, priority = 0): Promise<{ ok: boolean; taskId?: string; status: number; error?: string }> {
     const r = await this.request<{ task_id: string }>("POST", "/recrawl/queue/", { url });
     if (r.status === 202 || r.status === 201 || r.status === 200) {
       const taskId = r.json?.task_id;
       await this.prisma.yandexRecrawlQueue.upsert({
         where: { url },
-        create: { url, status: "submitted", attempts: 1, taskId },
+        create: { url, status: "submitted", attempts: 1, taskId, priority },
         update: { status: "submitted", attempts: { increment: 1 }, taskId, lastError: null },
       });
       return { ok: true, taskId, status: r.status };
     }
     const reason = r.error ?? `HTTP ${r.status}: ${JSON.stringify(r.json).slice(0, 200)}`;
-    await this.enqueueRetry(url, reason);
+    await this.enqueueRetry(url, reason, priority);
     return { ok: false, status: r.status, error: reason };
   }
 
-  /** 批量提交（quota 感知）：额度内直接提交，超出部分入队等次日 drain */
-  async submitUrls(urls: string[]): Promise<{ submitted: number; enqueued: number; quotaRemainder?: number }> {
+  /** 批量提交（quota 感知）：额度内直接提交，超出部分入队等次日 drain。priority 越大越先 drain */
+  async submitUrls(urls: string[], priority = 0): Promise<{ submitted: number; enqueued: number; quotaRemainder?: number }> {
     if (!this.enabled) return { submitted: 0, enqueued: 0 };
     const quota = await this.getQuota();
     const budget = quota?.remainder ?? 0;
@@ -98,11 +98,11 @@ export class YandexWebmasterService {
 
     for (const url of urls) {
       if (submitted >= budget) {
-        await this.enqueueRetry(url, "quota exhausted");
+        await this.enqueueRetry(url, "quota exhausted", priority);
         enqueued++;
         continue;
       }
-      const r = await this.recrawlUrl(url);
+      const r = await this.recrawlUrl(url, priority);
       if (r.ok) submitted++;
       else enqueued++;
       await sleep(500); // 礼貌间隔
@@ -110,12 +110,53 @@ export class YandexWebmasterService {
     return { submitted, enqueued, quotaRemainder: quota?.remainder };
   }
 
-  async enqueueRetry(url: string, reason: string): Promise<void> {
+  /** 入队重试。priority 只升不降（避免高优先 URL 被后续低优先入队冲掉） */
+  async enqueueRetry(url: string, reason: string, priority = 0): Promise<void> {
+    const existing = await this.prisma.yandexRecrawlQueue.findUnique({ where: { url }, select: { priority: true } });
+    const nextPriority = Math.max(priority, existing?.priority ?? 0);
     await this.prisma.yandexRecrawlQueue.upsert({
       where: { url },
-      create: { url, status: "pending_retry", attempts: 0, lastError: reason },
-      update: { status: "pending_retry", lastError: reason },
+      create: { url, status: "pending_retry", attempts: 0, lastError: reason, priority },
+      update: { status: "pending_retry", lastError: reason, priority: nextPriority },
     });
+  }
+
+  /**
+   * 回填 backlog 优先级：把 pending_retry 里已补齐 TMDB 的高价值页顶到前面。
+   * enrichStatus ok→60 / partial→40；no_match/空保持 0（短剧/体育等长尾）。
+   */
+  async reprioritizeBacklog(): Promise<{ scanned: number; updated: Record<string, number> }> {
+    const rows = await this.prisma.yandexRecrawlQueue.findMany({
+      where: { status: "pending_retry" },
+      select: { id: true, url: true },
+    });
+    const vidToQueue = new Map<string, number>();
+    for (const r of rows) {
+      const m = r.url.match(/\/vod\/([^/?#]+)/);
+      if (m) vidToQueue.set(m[1], r.id);
+    }
+    if (vidToQueue.size === 0) return { scanned: rows.length, updated: {} };
+
+    const videos = await this.prisma.video.findMany({
+      where: { id: { in: [...vidToQueue.keys()] } },
+      select: { id: true, enrichStatus: true },
+    });
+    const tier: Record<string, number> = { ok: 60, partial: 40 };
+    const buckets: Record<number, number[]> = {};
+    for (const v of videos) {
+      const p = tier[v.enrichStatus ?? ""];
+      const qid = vidToQueue.get(v.id);
+      if (p && qid != null) (buckets[p] ??= []).push(qid);
+    }
+    const updated: Record<string, number> = {};
+    for (const [p, ids] of Object.entries(buckets)) {
+      const res = await this.prisma.yandexRecrawlQueue.updateMany({
+        where: { id: { in: ids } },
+        data: { priority: Number(p) },
+      });
+      updated[p] = res.count;
+    }
+    return { scanned: rows.length, updated };
   }
 
   async drainQueue(opts: { batchSize?: number } = {}): Promise<{ drained: number; ok: number; failed: number }> {
@@ -129,7 +170,7 @@ export class YandexWebmasterService {
     const rows = await this.prisma.yandexRecrawlQueue.findMany({
       where: { status: "pending_retry", attempts: { lt: MAX_ATTEMPTS } },
       take: budget,
-      orderBy: { updatedAt: "asc" },
+      orderBy: [{ priority: "desc" }, { updatedAt: "asc" }],
     });
     for (const row of rows) {
       await this.prisma.yandexRecrawlQueue.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });

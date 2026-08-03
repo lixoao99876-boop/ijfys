@@ -22,17 +22,22 @@ export class SeoService {
     return (process.env.PUBLIC_SITE_URL ?? "https://aiskill88.xyz").replace(/\/+$/, "");
   }
 
-  /** 三路提交入口。google 无单 URL 通道，传了也只做 sitemap 重提交 */
-  async submitUrls(urls: string[], opts: { engines?: Engine[] } = {}) {
+  /** 三路提交入口。google 无单 URL 通道，传了也只做 sitemap 重提交。priority 传给 yandex 队列 */
+  async submitUrls(urls: string[], opts: { engines?: Engine[]; priority?: number } = {}) {
     const engines = opts.engines ?? ["bing", "yandex"];
     const dedup = [...new Set(urls)].filter((u) => u.startsWith(this.siteUrl));
     const out: Record<string, unknown> = { total: dedup.length };
     if (dedup.length === 0) return out;
 
     if (engines.includes("bing")) out.bing = await this.bing.submitBatch(dedup);
-    if (engines.includes("yandex")) out.yandex = await this.yandex.submitUrls(dedup);
+    if (engines.includes("yandex")) out.yandex = await this.yandex.submitUrls(dedup, opts.priority ?? 0);
     if (engines.includes("google")) out.google = await this.google.submitSitemap();
     return out;
+  }
+
+  /** 回填 Yandex backlog 优先级（高价值已补齐页顶到前面） */
+  async reprioritizeYandex() {
+    return this.yandex.reprioritizeBacklog();
   }
 
   /** sitemap 三引擎重提交 */
@@ -79,8 +84,16 @@ export class SeoService {
       take: 500,
     });
     const urls = rows.map((v) => `${this.siteUrl}/vod/${v.id}`);
-    const res = await this.submitUrls(urls);
+    // 新片给 priority 100，在 Yandex 队列里插到 backlog 前面
+    const res = await this.submitUrls(urls, { priority: 100 });
     this.logger.log(`seo-daily-submit: ${urls.length} urls → ${JSON.stringify(res).slice(0, 300)}`);
+  }
+
+  /** 01:45 回填 backlog 优先级（赶在 02:00 提交 / 03:00 drain 前，把昨日新补齐的高价值页顶上来） */
+  @Cron("45 1 * * *", { name: "seo-reprioritize-yandex", timeZone: "Asia/Shanghai" })
+  async cronReprioritizeYandex() {
+    const res = await this.reprioritizeYandex();
+    this.logger.log(`seo-reprioritize-yandex: ${JSON.stringify(res)}`);
   }
 
   @Cron("30 2 * * *", { name: "seo-drain-bing", timeZone: "Asia/Shanghai" })

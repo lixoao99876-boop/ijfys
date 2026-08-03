@@ -6,7 +6,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: `${SITE_NAME} ${SITE_HOST} - 高清在线影视`,
   description: `${SITE_NAME}：电影、剧集、综艺、动漫、短剧高清在线观看。`,
-  icons: { icon: "/favicon.svg" },
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+      { url: "/logo2.png", type: "image/png", sizes: "200x200" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

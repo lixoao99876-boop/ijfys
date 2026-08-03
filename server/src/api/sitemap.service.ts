@@ -9,6 +9,7 @@ interface UrlEntry {
   lastmod?: Date | null;
   changefreq?: string;
   priority?: number;
+  image?: { loc: string; title?: string } | null; // 图片 sitemap（封面海报）
 }
 
 const STATIC_ROUTES: Array<{ path: string; priority: number; changefreq: string }> = [
@@ -18,6 +19,7 @@ const STATIC_ROUTES: Array<{ path: string; priority: number; changefreq: string 
   { path: "/category/anime", priority: 0.8, changefreq: "daily" },
   { path: "/category/variety", priority: 0.8, changefreq: "daily" },
   { path: "/category/short", priority: 0.7, changefreq: "daily" },
+  { path: "/category/ai-duanju", priority: 0.9, changefreq: "daily" },
   { path: "/actor", priority: 0.6, changefreq: "weekly" },
   { path: "/article", priority: 0.6, changefreq: "daily" },
 ];
@@ -80,7 +82,7 @@ export class SitemapService {
       case "videos": {
         const rows = await this.prisma.video.findMany({
           where: { status: "PUBLISHED" },
-          select: { id: true, updatedAt: true },
+          select: { id: true, updatedAt: true, cover: true, title: true },
           orderBy: { createdAt: "asc" },
           skip,
           take: SHARD_LIMIT,
@@ -90,6 +92,8 @@ export class SitemapService {
           lastmod: v.updatedAt,
           changefreq: "daily",
           priority: 0.7,
+          // 封面海报进图片 sitemap（利于 Google 图片收录）
+          image: v.cover && /^https?:\/\//.test(v.cover) ? { loc: v.cover, title: v.title } : null,
         }));
         break;
       }
@@ -129,15 +133,25 @@ export class SitemapService {
 
     if (page > 1 && entries.length === 0) throw new NotFoundException("empty shard");
 
+    let hasImage = false;
     const items = entries
       .map((e) => {
         const parts = [`<loc>${xmlEscape(e.loc)}</loc>`];
         if (e.lastmod) parts.push(`<lastmod>${e.lastmod.toISOString()}</lastmod>`);
         if (e.changefreq) parts.push(`<changefreq>${e.changefreq}</changefreq>`);
         if (e.priority != null) parts.push(`<priority>${e.priority}</priority>`);
+        if (e.image) {
+          hasImage = true;
+          parts.push(
+            `<image:image><image:loc>${xmlEscape(e.image.loc)}</image:loc>` +
+              (e.image.title ? `<image:title>${xmlEscape(e.image.title)}</image:title>` : "") +
+              `</image:image>`,
+          );
+        }
         return `  <url>${parts.join("")}</url>`;
       })
       .join("\n");
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${items}\n</urlset>\n`;
+    const imageNs = hasImage ? ` xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"` : "";
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${imageNs}>\n${items}\n</urlset>\n`;
   }
 }

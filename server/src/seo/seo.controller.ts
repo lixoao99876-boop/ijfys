@@ -29,6 +29,11 @@ export class SeoController {
     return this.seo.resubmitSitemap();
   }
 
+  @Post("yandex/reprioritize")
+  reprioritizeYandex() {
+    return this.seo.reprioritizeYandex();
+  }
+
   @Get("queue")
   queue(@Query("engine") engine?: string, @Query("limit") limit?: string) {
     if (engine !== "bing" && engine !== "yandex") throw new BadRequestException("engine=bing|yandex");
