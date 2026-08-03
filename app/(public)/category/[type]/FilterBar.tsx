@@ -9,6 +9,7 @@ interface Props {
   regions: string[];
   years: string[];
   current: { genre: string; region: string; year: string; sort: string };
+  hideGenre?: boolean;
 }
 
 const SORTS = [
@@ -17,7 +18,7 @@ const SORTS = [
   { value: "year", label: "年份最新" },
 ];
 
-export default function FilterBar({ type, genres, regions, years, current }: Props) {
+export default function FilterBar({ type, genres, regions, years, current, hideGenre }: Props) {
   const router = useRouter();
 
   function navigate(patch: Partial<Props["current"]>) {
@@ -32,14 +33,16 @@ export default function FilterBar({ type, genres, regions, years, current }: Pro
 
   return (
     <div className="space-y-3 bg-surface/40 rounded-xl p-4 border border-white/5">
-      <Row label="类型">
-        <Chip active={!current.genre} onClick={() => navigate({ genre: "" })}>全部</Chip>
-        {genres.map((g) => (
-          <Chip key={g} active={current.genre === g} onClick={() => navigate({ genre: g })}>
-            {g}
-          </Chip>
-        ))}
-      </Row>
+      {!hideGenre && (
+        <Row label="类型">
+          <Chip active={!current.genre} onClick={() => navigate({ genre: "" })}>全部</Chip>
+          {genres.map((g) => (
+            <Chip key={g} active={current.genre === g} onClick={() => navigate({ genre: g })}>
+              {g}
+            </Chip>
+          ))}
+        </Row>
+      )}
       <Row label="地区">
         <Chip active={!current.region} onClick={() => navigate({ region: "" })}>全部</Chip>
         {regions.map((r) => (

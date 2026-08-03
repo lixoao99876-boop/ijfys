@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { HOT_KEYWORDS } from "@/lib/api/constants";
 import { useAuthStore } from "@/stores/authStore";
+import { SITE_NAME } from "@/lib/site";
+import MobileNav from "./MobileNav";
+import Icon from "@/components/ui/Icon";
 
 export default function Header() {
   const router = useRouter();
@@ -22,15 +25,16 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-background/70 border-b border-white/5">
-      <div className="flex items-center gap-4 px-4 md:px-8 h-16">
-        <Link href="/" className="md:hidden flex items-center gap-1 font-bold">
-          <span>🌀</span>
-          <span>飓风</span>
+      <div className="flex items-center gap-3 md:gap-4 px-4 md:px-8 h-16">
+        <MobileNav />
+        <Link href="/" className="md:hidden flex items-center gap-1 font-bold shrink-0">
+          <img src="/logo2.png" alt={SITE_NAME} width={26} height={26} className="rounded" />
+          <span>{SITE_NAME}</span>
         </Link>
 
         <form onSubmit={submit} className="relative flex-1 max-w-2xl">
           <div className="flex items-center bg-surface2/80 rounded-full border border-white/5 hover:border-white/10 focus-within:border-accent/60 transition">
-            <span className="pl-4 text-muted">🔍</span>
+            <span className="pl-4 text-muted flex items-center"><Icon name="search" size={17} /></span>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -72,7 +76,7 @@ export default function Header() {
           href="/history"
           className="hidden sm:flex items-center gap-1.5 text-sm text-muted hover:text-text transition"
         >
-          <span>🕐</span>
+          <Icon name="clock" size={16} />
           <span>历史</span>
         </Link>
         {user ? (
